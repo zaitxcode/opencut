@@ -157,6 +157,37 @@ MediaCodec ──► SurfaceTexture ──► external OES texture
                        GLSurfaceView  │  MediaCodec encoder input surface
 ```
 
+## Releases
+
+Download the latest build from the
+[GitHub releases page](https://github.com/zaitxcode/opencut/releases):
+
+| Version | File | Size | SHA-256 |
+|---|---|---|---|
+| 1.0.2 | `opencut-1.0.2.apk` | 1.45 MB | `6a2f5ad0a3c4961bc127105fe78483c4518175f8606f04054c4ff109074e66d0` |
+| 1.0.2 | `opencut-1.0.2.aab` | 3.75 MB | `2dbba847ac1941b1114beaea77218d3dda0a54a7ebf4267565c6ba747c1d2cdf` |
+
+Install the APK with `adb install opencut-1.0.2.apk` or by opening it on the
+phone. It works without an account; creating one is optional and stays on the
+device.
+
+### 1.0.2 — preview, playback and export fixes
+
+* the preview now shows the decoded video: frames are latched into the external
+  texture instead of being dropped, and layers are centred on the canvas
+* playback has a real clock: the playhead advances in real time and stops at the
+  end of the project
+* tapping a clip in the timeline selects it, so the filter and adjust panels
+  apply to the right layer
+* image, sticker and text layers are drawn with a 2D sampler — the external one
+  only accepts video frames
+* the exporter latches the decoded frames, sets the presentation timestamp of
+  every frame and keeps its own LUT cache, so the file has the right duration
+  and frame rate (30 fps, 4.000 s for a 4 s project) and the filters are baked
+  in
+* the preview is letterboxed inside the surface, so a 9:16 project is never
+  stretched
+
 ## Building
 
 Requirements: JDK 21+, Android SDK with platform 37, Gradle 9.6 (the wrapper is
@@ -218,7 +249,7 @@ Release key SHA-256: `FE:39:7D:E1:CF:4D:CF:B8:5B:97:A7:F7:7A:11:86:74:75:E8:BE:4
 | Panels | media, audio, text, sticker, filter (LUT), effect, adjust, transition, speed, canvas, crop, keyframe |
 | Export | implemented (video + mixed audio) |
 | Transitions | cross fade implemented in the renderer and the exporter |
-| Colour LUTs | seven built-in looks, generated analytically as 32³ textures |
+| Colour LUTs | seven built-in looks, generated analytically as 32×1024 strips |
 | Accounts | optional, local only (guest or named profile) |
 | Feature gating | none — every feature unlocked |
 | Curve speed, chroma key, masks, colour wheels | modelled in the data layer, not yet rendered |

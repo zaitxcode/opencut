@@ -27,7 +27,7 @@ void main() {
 precision mediump float;
 varying vec2 vTexCoord;
 uniform samplerExternalOES uTexture;
-uniform sampler3D uLut;
+uniform sampler2D uLut;
 uniform float uHasLut;
 uniform float uLutIntensity;
 
@@ -50,8 +50,21 @@ uniform float uChromaIntensity;
 uniform vec3  uChromaColor;
 uniform float uTime;
 
+// The cube is stored as a 32x1024 strip: x = slice * 32 + red, y = green,
+// so it can be sampled with a plain 2D texture on OpenGL ES 2.0.
+const float LUT_SIZE = 32.0;
+
 vec3 applyLut(vec3 color) {
-    vec3 mapped = texture(uLut, color).rgb;
+    float slice = color.b * (LUT_SIZE - 1.0);
+    float s0 = floor(slice);
+    float s1 = min(s0 + 1.0, LUT_SIZE - 1.0);
+    float f = slice - s0;
+    float y = (color.g * (LUT_SIZE - 1.0) + 0.5) / LUT_SIZE;
+    float x0 = (s0 * LUT_SIZE + color.r * (LUT_SIZE - 1.0) + 0.5) / (LUT_SIZE * LUT_SIZE);
+    float x1 = (s1 * LUT_SIZE + color.r * (LUT_SIZE - 1.0) + 0.5) / (LUT_SIZE * LUT_SIZE);
+    vec3 low = texture2D(uLut, vec2(x0, y)).rgb;
+    vec3 high = texture2D(uLut, vec2(x1, y)).rgb;
+    vec3 mapped = mix(low, high, f);
     return mix(color, mapped, uLutIntensity);
 }
 
@@ -119,6 +132,18 @@ void main() {
     gl_FragColor = vec4(clamp(color, 0.0, 1.0), texel.a);
 }
 """
+
+    /**
+     * Same shading as [TEXTURE_FRAGMENT], but for ordinary 2D textures.
+     *
+     * `samplerExternalOES` only accepts textures produced by a SurfaceTexture; images,
+     * stickers and text layers are uploaded as `GL_TEXTURE_2D`, so they need a program
+     * whose sampler has the matching type.
+     */
+    val TEXTURE_FRAGMENT_2D = TEXTURE_FRAGMENT
+        .replace("#extension GL_OES_EGL_image_external : require\n", "")
+        .replace("uniform samplerExternalOES uTexture;", "uniform sampler2D uTexture;")
+
 
     /** Composites a layer over the canvas with source-over alpha blending. */
     const val COMPOSITE_FRAGMENT = """

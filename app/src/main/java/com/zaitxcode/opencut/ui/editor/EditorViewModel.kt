@@ -19,11 +19,15 @@ import com.zaitxcode.opencut.core.model.Segment
 import com.zaitxcode.opencut.core.model.TransitionSpec
 import com.zaitxcode.opencut.core.store.ProjectStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.UUID
 
 /**
@@ -84,9 +88,19 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Returns the editing session, creating it from the current snapshot when the
+     * screen has not opened one yet.
+     *
+     * This matters when the activity is recreated while the system picker is in
+     * front: the result callback can arrive before the composition has re-opened
+     * the project, and a mutation must never be dropped because of that race.
+     */
+    private fun session(): EditorStore = store ?: EditorStore(_project.value).also { store = it }
+
     /** Applies a mutation and republishes the observable state. */
     private fun mutate(block: EditorStore.() -> Unit) {
-        val active = store ?: return
+        val active = session()
         active.apply(block)
         publish(active)
     }
@@ -97,6 +111,23 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         _playheadUs.value = active.playheadUs
         _canUndo.value = active.canUndo
         _canRedo.value = active.canRedo
+        scheduleSave(active.project)
+    }
+
+    private var saveJob: Job? = null
+
+    /**
+     * Writes the project shortly after the last edit.
+     *
+     * A crash or a low-memory kill must not lose the user's timeline, so every
+     * mutation schedules a save; rapid edits collapse into one write.
+     */
+    private fun scheduleSave(project: Project) {
+        saveJob?.cancel()
+        saveJob = viewModelScope.launch {
+            delay(700)
+            projectStore.writeProject(project.copy(updatedAt = System.currentTimeMillis()))
+        }
     }
 
     fun select(segmentId: String?, trackId: String? = null) {
@@ -111,8 +142,43 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         publish(active)
     }
 
+    private var playJob: Job? = null
+
+    /**
+     * Starts or stops playback.
+     *
+     * The clock advances the playhead in real time while the GL surface keeps
+     * rendering, so audio-less clips still preview at their natural speed.
+     */
     fun setPlaying(value: Boolean) {
+        if (_playing.value == value) return
         _playing.value = value
+        playJob?.cancel()
+        if (!value) return
+        playJob = viewModelScope.launch {
+            var last = System.nanoTime()
+            while (isActive) {
+                kotlinx.coroutines.delay(16)
+                val now = System.nanoTime()
+                val deltaUs = (now - last) / 1_000
+                last = now
+                val active = session()
+                val total = active.project.durationUs
+                if (total <= 0L) {
+                    _playing.value = false
+                    break
+                }
+                val next = active.playheadUs + deltaUs
+                if (next >= total) {
+                    active.seek(total)
+                    _playheadUs.value = total
+                    _playing.value = false
+                    break
+                }
+                active.seek(next)
+                _playheadUs.value = next
+            }
+        }
     }
 
     fun undo() = mutate { undo() }
@@ -189,15 +255,18 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
     /**
      * Imports the given media uris and appends them to the timeline.
      *
-     * Each file is probed in the background so the editor stays responsive while a
-     * long video is inspected.
+     * The bytes are copied into the app's private storage first: the system photo
+     * picker only grants access for the lifetime of the process, so a project that
+     * referenced the picker uri directly would stop rendering after a restart.
      */
     fun importMedia(uris: List<Uri>) {
+        if (uris.isEmpty()) return
         viewModelScope.launch {
             val app = getApplication<Application>()
             val imported = withContext(Dispatchers.IO) {
                 uris.mapNotNull { uri ->
-                    val info = MediaProbe.probe(app, uri) ?: return@mapNotNull null
+                    val local = copyIntoStorage(app, uri)
+                    val info = MediaProbe.probe(app, local) ?: return@mapNotNull null
                     val kind = when {
                         info.hasVideo && !info.hasAudio -> MaterialKind.VIDEO
                         info.hasAudio && !info.hasVideo -> MaterialKind.AUDIO
@@ -207,14 +276,14 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
                     Material(
                         id = UUID.randomUUID().toString(),
                         kind = kind,
-                        path = uri.toString(),
+                        path = local.toString(),
                         name = uri.lastPathSegment?.substringAfterLast('/') ?: "media",
                         durationUs = info.durationUs,
                         width = info.displayWidth,
                         height = info.displayHeight,
                         frameRate = info.frameRate,
                         hasAudio = info.hasAudio,
-                    ) to uri
+                    ) to local
                 }
             }
             if (imported.isEmpty()) return@launch
@@ -224,6 +293,20 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
     }
+
+    /** Copies a picked document into `files/media` and returns the local uri. */
+    private fun copyIntoStorage(app: Application, uri: Uri): Uri = runCatching {
+        val dir = File(app.filesDir, "media").apply { mkdirs() }
+        val extension = app.contentResolver.getType(uri)
+            ?.substringAfterLast('/')
+            ?.takeIf { it.length in 1..5 }
+            ?: "bin"
+        val target = File(dir, UUID.randomUUID().toString() + "." + extension)
+        app.contentResolver.openInputStream(uri)?.use { input ->
+            target.outputStream().use { output -> input.copyTo(output) }
+        } ?: return uri
+        Uri.fromFile(target)
+    }.getOrDefault(uri)
 
     /** Persists the current project. */
     fun save() {

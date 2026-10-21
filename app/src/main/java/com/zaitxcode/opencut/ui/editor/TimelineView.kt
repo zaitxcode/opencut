@@ -127,7 +127,20 @@ fun TimelineView(
                 .height(TRACK_HEIGHT * project.tracks.size.coerceAtLeast(1))
                 .pointerInput(visibleDurationUs, project.tracks) {
                     detectTapGestures { offset ->
-                        onSeek((offset.x / pxPerSecond * 1_000_000f).toLong().coerceAtLeast(0L))
+                        // Tapping a clip selects it; tapping empty space scrubs.
+                        val hit = hitTest(
+                            project = project,
+                            x = offset.x,
+                            y = offset.y,
+                            pxPerSecond = pxPerSecond,
+                            trackHeightPx = trackHeightPx,
+                        )
+                        if (hit != null) {
+                            onSelect(hit.segment.id)
+                            onSeek(hit.segment.target.start)
+                        } else {
+                            onSeek((offset.x / pxPerSecond * 1_000_000f).toLong().coerceAtLeast(0L))
+                        }
                     }
                 },
         ) {

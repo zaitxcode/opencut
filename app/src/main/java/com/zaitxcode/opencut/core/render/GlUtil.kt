@@ -1,7 +1,6 @@
 package com.zaitxcode.opencut.core.render
 
 import android.opengl.GLES20
-import android.opengl.GLES30
 import android.opengl.Matrix
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -78,17 +77,35 @@ object GlUtil {
         }
     }
 
-    /** Uploads a 32x32x32 colour lookup table as a 3D texture. */
-    fun createLutTexture(size: Int = 32): Int {
+    /**
+     * Creates the neutral 1x1 LUT used when a layer has no filter.
+     *
+     * Filters themselves are uploaded by [LutFactory] as 32x1024 strip textures;
+     * this placeholder only exists so the sampler always has a valid binding.
+     */
+    fun createLutTexture(): Int {
         val ids = IntArray(1)
-        GLES30.glGenTextures(1, ids, 0)
-        GLES30.glBindTexture(GLES30.GL_TEXTURE_3D, ids[0])
-        GLES30.glTexParameteri(GLES30.GL_TEXTURE_3D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR)
-        GLES30.glTexParameteri(GLES30.GL_TEXTURE_3D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
-        GLES30.glTexParameteri(GLES30.GL_TEXTURE_3D, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_CLAMP_TO_EDGE)
-        GLES30.glTexParameteri(GLES30.GL_TEXTURE_3D, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_CLAMP_TO_EDGE)
-        GLES30.glTexParameteri(GLES30.GL_TEXTURE_3D, GLES30.GL_TEXTURE_WRAP_R, GLES30.GL_CLAMP_TO_EDGE)
-        GLES30.glBindTexture(GLES30.GL_TEXTURE_3D, 0)
+        GLES20.glGenTextures(1, ids, 0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, ids[0])
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        val pixel = java.nio.ByteBuffer.allocateDirect(4).order(java.nio.ByteOrder.nativeOrder())
+        pixel.put(0xFF.toByte()).put(0xFF.toByte()).put(0xFF.toByte()).put(0xFF.toByte())
+        pixel.position(0)
+        GLES20.glTexImage2D(
+            GLES20.GL_TEXTURE_2D,
+            0,
+            GLES20.GL_RGBA,
+            1,
+            1,
+            0,
+            GLES20.GL_RGBA,
+            GLES20.GL_UNSIGNED_BYTE,
+            pixel,
+        )
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
         return ids[0]
     }
 

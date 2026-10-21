@@ -11,6 +11,7 @@ import android.opengl.EGL14
 import android.opengl.EGLConfig
 import android.opengl.EGLContext
 import android.opengl.EGLDisplay
+import android.opengl.EGLExt
 import android.opengl.EGLSurface
 import android.opengl.GLES20
 import android.util.Log
@@ -100,6 +101,9 @@ class ExportEngine(private val context: Context) {
         val layers = PreviewRenderer.buildState(project, 0L).layers
         val decoders = HashMap<String, com.zaitxcode.opencut.core.render.VideoDecoder>()
         val textures = HashMap<String, Int>()
+        // LUT ids are owned by the GL context that created them, so the exporter keeps
+        // its own cache instead of reusing the preview's.
+        val lutTextures = HashMap<com.zaitxcode.opencut.core.render.LutFactory.Look, Int>()
 
         val bufferInfo = MediaCodec.BufferInfo()
         var muxerStarted = false
@@ -138,6 +142,7 @@ class ExportEngine(private val context: Context) {
                             // decoder is only repositioned when it drifted away.
                             if (!it.isNear(sourceTime)) it.seekTo(sourceTime)
                             it.advanceTo(sourceTime)
+                            it.latchFrame()
                             it.textureId
                         }
                     }
@@ -155,12 +160,18 @@ class ExportEngine(private val context: Context) {
                     canvasWidth = project.canvas.width,
                     canvasHeight = project.canvas.height,
                     playheadUs = playheadUs,
-                    lutTexture = look?.let { com.zaitxcode.opencut.core.render.LutFactory.textureFor(it) } ?: 0,
+                    lutTexture = look?.let {
+                        lutTextures.getOrPut(it) {
+                            com.zaitxcode.opencut.core.render.LutFactory.createTexture(it)
+                        }
+                    } ?: 0,
                     lutIntensity = layer.filter?.intensity ?: 1f,
                 )
             }
             composer.disableBlend()
-            egl.swapBuffers()
+            // The encoder reads the frame time from the surface, so every swap must
+            // carry the presentation timestamp of the frame being pushed.
+            egl.swapBuffers(playheadUs * 1_000L)
 
             // Drain the encoder and write into the container.
             while (true) {
@@ -302,7 +313,8 @@ private class EglBridge(private val surface: android.view.Surface) {
         EGL14.eglMakeCurrent(display, eglSurface, eglSurface, context)
     }
 
-    fun swapBuffers() {
+    fun swapBuffers(presentationTimeNs: Long) {
+        EGLExt.eglPresentationTimeANDROID(display, eglSurface, presentationTimeNs)
         EGL14.eglSwapBuffers(display, eglSurface)
     }
 

@@ -1,11 +1,17 @@
 package com.zaitxcode.opencut
 
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,7 +46,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // The editor is always dark, so the system bars always use light icons.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+        )
         setContent {
             OpenCutTheme {
                 OpenCutNavHost()
@@ -54,13 +64,20 @@ private fun OpenCutNavHost() {
     val navController = rememberNavController()
     val context = LocalContext.current
 
-    NavHost(
-        navController = navController,
-        startDestination = Routes.START,
+    // The background is painted edge to edge; the content itself is inset so the
+    // top bar never hides behind the status bar.
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
+        NavHost(
+            navController = navController,
+            startDestination = Routes.START,
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+        ) {
         // Decides whether the first launch gate is needed. Nothing is stored
         // here: the account store already answers the question.
         composable(Routes.START) {
@@ -124,5 +141,6 @@ private fun OpenCutNavHost() {
                 onBack = { navController.popBackStack() },
             )
         }
+    }
     }
 }

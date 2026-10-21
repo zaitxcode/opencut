@@ -36,6 +36,13 @@ class VideoDecoder(
     private var inputDone = false
     private var release = false
 
+    /** Set by the producer thread whenever a decoded frame reaches the surface. */
+    @Volatile
+    private var frameAvailable = false
+
+    /** True once a frame has actually been rendered into the texture. */
+    private var hasFrame = false
+
     val textureId: Int = createExternalTexture()
     private val released = AtomicBoolean(false)
 
@@ -81,6 +88,7 @@ class VideoDecoder(
             val codedHeight = format.getInteger(MediaFormat.KEY_HEIGHT).coerceAtLeast(16)
             val texture = SurfaceTexture(textureId).also {
                 it.setDefaultBufferSize(codedWidth, codedHeight)
+                it.setOnFrameAvailableListener { frameAvailable = true }
             }
             surfaceTexture = texture
 
@@ -109,8 +117,30 @@ class VideoDecoder(
             extractor.seekTo(timeUs.coerceAtLeast(0L), MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
             codec.flush()
             inputDone = false
+            frameAvailable = false
+            hasFrame = false
         } catch (error: Throwable) {
             Log.w(TAG, "seek failed", error)
+        }
+    }
+
+    /**
+     * Copies the newest decoded frame into the external texture.
+     *
+     * A frame is produced asynchronously by the codec, so the frame that was just
+     * submitted is usually not ready yet; the renderer calls this every frame and
+     * picks the picture up as soon as the producer delivers it. Must run on the GL
+     * thread that owns [textureId].
+     */
+    fun latchFrame(): Boolean {
+        if (!frameAvailable) return false
+        frameAvailable = false
+        return try {
+            surfaceTexture?.updateTexImage()
+            true
+        } catch (error: Throwable) {
+            Log.w(TAG, "updateTexImage failed", error)
+            false
         }
     }
 
@@ -122,6 +152,9 @@ class VideoDecoder(
     fun advanceTo(untilUs: Long): Long {
         val codec = codec ?: return 0L
         val extractor = extractor ?: return 0L
+        if (hasFrame && untilUs <= lastFrameTimeUs && lastFrameTimeUs - untilUs < FRAME_TOLERANCE_US) {
+            return lastFrameTimeUs
+        }
         val bufferInfo = MediaCodec.BufferInfo()
         var guard = 0
         while (guard++ < MAX_DECODE_STEPS) {
@@ -162,7 +195,7 @@ class VideoDecoder(
                 codec.releaseOutputBuffer(outputIndex, render)
                 if (render) {
                     lastFrameTimeUs = presentationUs
-                    surfaceTexture?.updateTexImage()
+                    hasFrame = true
                 }
                 if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
                     return lastFrameTimeUs
@@ -233,5 +266,6 @@ class VideoDecoder(
         const val TAG = "OpenCut/Decoder"
         const val TIMEOUT_US = 10_000L
         const val MAX_DECODE_STEPS = 96
+        const val FRAME_TOLERANCE_US = 80_000L
     }
 }

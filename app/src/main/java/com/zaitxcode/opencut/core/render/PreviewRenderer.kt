@@ -77,7 +77,12 @@ class PreviewRenderer(private val context: Context) : GLSurfaceView.Renderer {
         composer.init()
     }
 
+    private var surfaceWidth = 0
+    private var surfaceHeight = 0
+
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
+        surfaceWidth = width
+        surfaceHeight = height
         GLES20.glViewport(0, 0, width, height)
     }
 
@@ -90,8 +95,8 @@ class PreviewRenderer(private val context: Context) : GLSurfaceView.Renderer {
         composer.setViewport(
             project.canvas.width,
             project.canvas.height,
-            project.canvas.width,
-            project.canvas.height,
+            surfaceWidth,
+            surfaceHeight,
         )
         composer.enableBlend()
 
@@ -123,7 +128,11 @@ class PreviewRenderer(private val context: Context) : GLSurfaceView.Renderer {
             decoder?.let {
                 val offsetUs = state.playheadUs - layer.targetStartUs
                 val sourceTimeUs = layer.sourceStartUs + (offsetUs * layer.speed).toLong()
+                if (sourceTimeUs + FRAME_TOLERANCE_US < it.lastFrameTimeUs) {
+                    it.seekTo(sourceTimeUs)
+                }
                 it.advanceTo(sourceTimeUs)
+                it.latchFrame()
                 it.textureId
             }
         }
@@ -135,10 +144,16 @@ class PreviewRenderer(private val context: Context) : GLSurfaceView.Renderer {
         }
     }
 
-    private fun decoderFor(layer: RenderLayer): VideoDecoder? =
-        decoders.getOrPut(layer.materialId) {
-            VideoDecoder(context, Uri.parse(layer.uri)).takeIf { it.open() }
+    private fun decoderFor(layer: RenderLayer): VideoDecoder? {
+        decoders[layer.materialId]?.let { return it }
+        val created = VideoDecoder(context, Uri.parse(layer.uri))
+        if (!created.open()) {
+            created.release()
+            return null
         }
+        decoders[layer.materialId] = created
+        return created
+    }
 
     private fun bitmapFor(layer: RenderLayer): Bitmap {
         val width = if (layer.sourceWidth > 0) layer.sourceWidth else 1080
@@ -178,6 +193,7 @@ class PreviewRenderer(private val context: Context) : GLSurfaceView.Renderer {
 
     companion object {
         private const val TAG = "OpenCut/Renderer"
+        private const val FRAME_TOLERANCE_US = 80_000L
 
         /** Builds the layer list for the current project state. */
         fun buildState(

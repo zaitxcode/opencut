@@ -1,6 +1,6 @@
 package com.zaitxcode.opencut.core.render
 
-import android.opengl.GLES30
+import android.opengl.GLES20
 import com.zaitxcode.opencut.core.model.FilterSpec
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -10,9 +10,14 @@ import kotlin.math.pow
 /**
  * Colour lookup tables used by the renderer.
  *
- * A LUT is a 32×32×32 RGB cube uploaded as a 3D texture. The cubes are generated
- * analytically instead of being shipped as binary assets, which keeps the project
- * free of third party material while still allowing an arbitrary number of looks.
+ * A LUT is a 32×32×32 RGB cube flattened into a 32×1024 strip texture:
+ * `x = slice * 32 + red`, `y = green`. A 3D texture would be simpler, but
+ * `sampler3D` does not exist in OpenGL ES 2.0 and the preview runs on an ES 2.0
+ * context, so the strip keeps the renderer compatible with every device.
+ *
+ * The cubes are generated analytically instead of being shipped as binary
+ * assets, which keeps the project free of third party material while still
+ * allowing an arbitrary number of looks.
  */
 object LutFactory {
 
@@ -34,27 +39,36 @@ object LutFactory {
     /** Returns the GL texture of a look, creating it on first use. */
     fun textureFor(look: Look): Int = cache.getOrPut(look) { create(look) }
 
+    /**
+     * Creates a fresh texture instead of using the shared cache.
+     *
+     * The preview and the exporter use different EGL contexts, and a texture name is
+     * only valid in the context that created it.
+     */
+    fun createTexture(look: Look): Int = create(look)
+
     /** Releases every cached texture. */
     fun releaseAll() {
         val ids = IntArray(cache.size)
         cache.values.forEachIndexed { index, id -> ids[index] = id }
-        if (ids.isNotEmpty()) GLES30.glDeleteTextures(ids.size, ids, 0)
+        if (ids.isNotEmpty()) GLES20.glDeleteTextures(ids.size, ids, 0)
         cache.clear()
     }
 
     private fun create(look: Look): Int {
         val ids = IntArray(1)
-        GLES30.glGenTextures(1, ids, 0)
-        GLES30.glBindTexture(GLES30.GL_TEXTURE_3D, ids[0])
-        GLES30.glTexParameteri(GLES30.GL_TEXTURE_3D, GLES30.GL_TEXTURE_MIN_FILTER, GLES30.GL_LINEAR)
-        GLES30.glTexParameteri(GLES30.GL_TEXTURE_3D, GLES30.GL_TEXTURE_MAG_FILTER, GLES30.GL_LINEAR)
-        GLES30.glTexParameteri(GLES30.GL_TEXTURE_3D, GLES30.GL_TEXTURE_WRAP_S, GLES30.GL_CLAMP_TO_EDGE)
-        GLES30.glTexParameteri(GLES30.GL_TEXTURE_3D, GLES30.GL_TEXTURE_WRAP_T, GLES30.GL_CLAMP_TO_EDGE)
-        GLES30.glTexParameteri(GLES30.GL_TEXTURE_3D, GLES30.GL_TEXTURE_WRAP_R, GLES30.GL_CLAMP_TO_EDGE)
+        GLES20.glGenTextures(1, ids, 0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, ids[0])
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1)
 
-        val data = ByteBuffer.allocate(SIZE * SIZE * SIZE * 3).order(ByteOrder.nativeOrder())
-        for (b in 0 until SIZE) {
-            for (g in 0 until SIZE) {
+        // Rows are green, columns are (blue slice * 32 + red).
+        val data = ByteBuffer.allocate(SIZE * SIZE * SIZE * 4).order(ByteOrder.nativeOrder())
+        for (g in 0 until SIZE) {
+            for (b in 0 until SIZE) {
                 for (r in 0 until SIZE) {
                     val red = r / (SIZE - 1f)
                     val green = g / (SIZE - 1f)
@@ -63,23 +77,23 @@ object LutFactory {
                     data.put((mapped[0].coerceIn(0f, 1f) * 255).toInt().toByte())
                     data.put((mapped[1].coerceIn(0f, 1f) * 255).toInt().toByte())
                     data.put((mapped[2].coerceIn(0f, 1f) * 255).toInt().toByte())
+                    data.put(0xFF.toByte())
                 }
             }
         }
         data.rewind()
-        GLES30.glTexImage3D(
-            GLES30.GL_TEXTURE_3D,
+        GLES20.glTexImage2D(
+            GLES20.GL_TEXTURE_2D,
             0,
-            GLES30.GL_RGB,
-            SIZE,
-            SIZE,
+            GLES20.GL_RGBA,
+            SIZE * SIZE,
             SIZE,
             0,
-            GLES30.GL_RGB,
-            GLES30.GL_UNSIGNED_BYTE,
+            GLES20.GL_RGBA,
+            GLES20.GL_UNSIGNED_BYTE,
             data,
         )
-        GLES30.glBindTexture(GLES30.GL_TEXTURE_3D, 0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
         return ids[0]
     }
 
