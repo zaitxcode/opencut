@@ -1,0 +1,18 @@
+OpenCut is an independent, clean-room open-source video editor.
+
+It was written after observing the *architecture* of a commercial video editor
+(CapCut 15.3.0, package com.lemon.lvoverseas) through static analysis of the
+shipped package. See docs/CAPCUT_REVERSE_ENGINEERING.md.
+
+No CapCut source code, resources, artwork, fonts, audio or text are included in
+this repository, and none of CapCut's trademarks are used. All names, the logo and
+the launcher icon in this project are original artwork created for it.
+
+OpenCut has no connection to CapCut or ByteDance. It does not call their servers,
+does not use their APIs, and does not download their effects, filters, templates
+or music. See docs/PROVIDERS.md for the optional self-hosted content catalogue.
+
+OpenCut is not affiliated with, endorsed by or sponsored by any commercial video
+editor.
+
+Licence: MIT (see LICENSE). The logo and icon are covered by the same licence.

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenCut</string>
+
+    <!-- Home -->
+    <string name="home_title">Projects</string>
+    <string name="home_new_project">New project</string>
+    <string name="home_empty">No projects yet. Tap New project to start editing.</string>
+
+    <!-- Editor chrome -->
+    <string name="editor_back">Back</string>
+    <string name="editor_undo">Undo</string>
+    <string name="editor_redo">Redo</string>
+    <string name="editor_export">Export</string>
+    <string name="editor_preview">Preview</string>
+    <string name="editor_play">Play</string>
+    <string name="editor_pause">Pause</string>
+
+    <!-- Dock tools -->
+    <string name="tool_media">Media</string>
+    <string name="tool_audio">Audio</string>
+    <string name="tool_text">Text</string>
+    <string name="tool_sticker">Sticker</string>
+    <string name="tool_filter">Filters</string>
+    <string name="tool_effect">Effects</string>
+    <string name="tool_adjust">Adjust</string>
+    <string name="tool_transition">Transition</string>
+    <string name="tool_speed">Speed</string>
+    <string name="tool_volume">Volume</string>
+    <string name="tool_crop">Crop</string>
+    <string name="tool_ratio">Ratio</string>
+    <string name="tool_canvas">Canvas</string>
+    <string name="tool_animate">Animate</string>
+    <string name="tool_keyframe">Keyframes</string>
+    <string name="tool_duplicate">Duplicate</string>
+    <string name="tool_delete">Delete</string>
+    <string name="tool_split">Split</string>
+
+    <!-- Export -->
+    <string name="export_title">Export</string>
+    <string name="export_resolution">Resolution</string>
+    <string name="export_frame_rate">Frame rate</string>
+    <string name="export_start">Export</string>
+    <string name="export_cancel">Cancel</string>
+    <string name="export_done">Export finished</string>
+    <string name="export_failed">Export failed</string>
+    <string name="export_progress">Exporting… %1$d%%</string>
+
+    <!-- Common -->
+    <string name="common_cancel">Cancel</string>
+    <string name="common_ok">OK</string>
+    <string name="common_save">Save</string>
+    <string name="common_reset">Reset</string>
+    <string name="common_done">Done</string>
+</resources>
