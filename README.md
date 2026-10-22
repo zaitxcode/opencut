@@ -168,8 +168,8 @@ Download the latest build from the
 
 | Version | File | Size | SHA-256 |
 |---|---|---|---|
-| 1.0.3 | `opencut-1.0.3.apk` | 1.47 MB | see the release page |
-| 1.0.3 | `opencut-1.0.3.aab` | 3.78 MB | see the release page |
+| 1.0.3 | `opencut-1.0.3.apk` | 1.58 MB | `8360db497afb9c8b98ea1769cc968a82ddd461d692dc2d1afcb0a93b2812444c` |
+| 1.0.3 | `opencut-1.0.3.aab` | 3.91 MB | `91de9c7cf54ab456f45df1d860cec664a923101e7e9480b6008e44d7c3f71506` |
 | 1.0.2 | `opencut-1.0.2.apk` | 1.45 MB | `6a2f5ad0a3c4961bc127105fe78483c4518175f8606f04054c4ff109074e66d0` |
 | 1.0.2 | `opencut-1.0.2.aab` | 3.75 MB | `2dbba847ac1941b1114beaea77218d3dda0a54a7ebf4267565c6ba747c1d2cdf` |
 
