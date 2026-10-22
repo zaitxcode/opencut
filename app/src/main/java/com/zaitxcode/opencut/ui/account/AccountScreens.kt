@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
@@ -40,15 +41,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zaitxcode.opencut.OpenCutApp
+import com.zaitxcode.opencut.R
 import com.zaitxcode.opencut.core.account.UserProfile
 import com.zaitxcode.opencut.core.entitlements.Entitlements
 import com.zaitxcode.opencut.core.entitlements.Feature
 import com.zaitxcode.opencut.core.entitlements.FeatureGroup
+import com.zaitxcode.opencut.core.i18n.AppLanguage
+import com.zaitxcode.opencut.core.i18n.publishSystemLocale
 import com.zaitxcode.opencut.ui.theme.BrandCentered
 import com.zaitxcode.opencut.ui.theme.BrandLogo
 import com.zaitxcode.opencut.ui.theme.BrandMark
@@ -79,7 +84,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
         BrandCentered(markSize = 68.dp, fontSize = 32)
         Spacer(Modifier.height(10.dp))
         Text(
-            text = "An open source video editor",
+            text = stringResource(R.string.onboarding_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -90,10 +95,18 @@ fun OnboardingScreen(onDone: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Promise("Everything is free", "No subscription, no credits, no watermark.")
-            Promise("No account required", "Edit offline and keep your drafts on this device.")
-            Promise("Open source", "MIT licensed, auditable and forkable.")
-            Promise("Works with or without sign in", "A local profile is enough.")
+            Promise(
+                stringResource(R.string.onboarding_free_title),
+                stringResource(R.string.onboarding_free_body),
+            )
+            Promise(
+                stringResource(R.string.onboarding_account_title),
+                stringResource(R.string.onboarding_account_body),
+            )
+            Promise(
+                stringResource(R.string.onboarding_open_title),
+                stringResource(R.string.onboarding_open_body),
+            )
         }
 
         Spacer(Modifier.height(36.dp))
@@ -109,7 +122,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
             shape = RoundedCornerShape(14.dp),
         ) {
-            Text("Continue without an account", fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.onboarding_guest), fontWeight = FontWeight.SemiBold)
         }
 
         Spacer(Modifier.height(10.dp))
@@ -124,7 +137,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
             ) {
                 Icon(Icons.Default.Person, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Create a local account")
+                Text(stringResource(R.string.onboarding_account))
             }
         } else {
             Column(
@@ -135,13 +148,13 @@ fun OnboardingScreen(onDone: () -> Unit) {
                     .padding(14.dp),
             ) {
                 Text(
-                    text = "Pick a display name",
+                    text = stringResource(R.string.account_name_label),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "It is stored only on this device.",
+                    text = stringResource(R.string.account_guest_body),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -150,7 +163,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
                     value = name,
                     onValueChange = { name = it.take(32) },
                     singleLine = true,
-                    placeholder = { Text("Your name") },
+                    placeholder = { Text(stringResource(R.string.account_name_hint)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(10.dp))
@@ -164,14 +177,14 @@ fun OnboardingScreen(onDone: () -> Unit) {
                         .height(48.dp),
                     shape = RoundedCornerShape(12.dp),
                 ) {
-                    Text("Create account")
+                    Text(stringResource(R.string.onboarding_account))
                 }
             }
         }
 
         Spacer(Modifier.height(24.dp))
         Text(
-            text = "OpenCut is not affiliated with any commercial editor.",
+            text = stringResource(R.string.account_licence),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -223,6 +236,17 @@ fun AccountScreen(
     var profile by remember { mutableStateOf(store.current()) }
     var renaming by remember { mutableStateOf(false) }
     var draftName by remember { mutableStateOf(profile?.displayName ?: "") }
+    var language by remember { mutableStateOf(AppLanguage.current(context)) }
+
+    // Switching the language rebuilds the activity, so every string and the text
+    // direction follow the new choice right away.
+    val onLanguage: (AppLanguage) -> Unit = { picked ->
+        if (picked != language) {
+            AppLanguage.set(context, picked)
+            publishSystemLocale(context, picked)
+            (context as? android.app.Activity)?.recreate()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -238,12 +262,12 @@ fun AccountScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.editor_back),
                     tint = MaterialTheme.colorScheme.onBackground,
                 )
             }
             Text(
-                text = "Account",
+                text = stringResource(R.string.account_title),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground,
             )
@@ -281,15 +305,15 @@ fun AccountScreen(
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = profile?.displayName ?: "Not signed in",
+                        text = profile?.displayName ?: stringResource(R.string.account_guest),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = when {
-                            profile == null -> "Choose a profile to continue"
-                            profile!!.isGuest -> "Guest profile · on this device"
-                            else -> "${profile!!.handle} · local account"
+                            profile == null -> stringResource(R.string.account_guest_body)
+                            profile!!.isGuest -> stringResource(R.string.account_guest_body)
+                            else -> "${profile!!.handle} · " + stringResource(R.string.account_licence)
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -300,7 +324,10 @@ fun AccountScreen(
                         draftName = profile?.displayName ?: ""
                         renaming = !renaming
                     }) {
-                        Text(if (renaming) "Cancel" else "Rename")
+                        Text(
+                            if (renaming) stringResource(R.string.common_cancel)
+                            else stringResource(R.string.account_name_label),
+                        )
                     }
                 }
             }
@@ -322,9 +349,42 @@ fun AccountScreen(
                         profile = store.rename(draftName)
                         renaming = false
                     }) {
-                        Text("Save")
+                        Text(stringResource(R.string.common_save))
                     }
                 }
+            }
+
+
+            // --------------------------------------------------------- language --
+            Spacer(Modifier.height(18.dp))
+            Text(
+                text = stringResource(R.string.account_language),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                LanguageChip(
+                    label = stringResource(R.string.account_language_system),
+                    selected = language == AppLanguage.SYSTEM,
+                    onClick = { onLanguage(AppLanguage.SYSTEM) },
+                    modifier = Modifier.weight(1f),
+                )
+                LanguageChip(
+                    label = stringResource(R.string.account_language_en),
+                    selected = language == AppLanguage.ENGLISH,
+                    onClick = { onLanguage(AppLanguage.ENGLISH) },
+                    modifier = Modifier.weight(1f),
+                )
+                LanguageChip(
+                    label = stringResource(R.string.account_language_ar),
+                    selected = language == AppLanguage.ARABIC,
+                    onClick = { onLanguage(AppLanguage.ARABIC) },
+                    modifier = Modifier.weight(1f),
+                )
             }
 
             // ------------------------------------------------------------- plan --
@@ -356,7 +416,7 @@ fun AccountScreen(
 
             Spacer(Modifier.height(18.dp))
             Text(
-                text = "Included features",
+                text = stringResource(R.string.account_about),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -379,7 +439,7 @@ fun AccountScreen(
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Continue without an account")
+                    Text(stringResource(R.string.onboarding_guest))
                 }
             } else {
                 OutlinedButton(
@@ -390,13 +450,13 @@ fun AccountScreen(
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Sign out")
+                    Text(stringResource(R.string.account_sign_out))
                 }
             }
 
             Spacer(Modifier.height(28.dp))
             Text(
-                text = "OpenCut · MIT licence · version 0.1.0",
+                text = stringResource(R.string.account_licence),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
@@ -405,6 +465,33 @@ fun AccountScreen(
                 textAlign = TextAlign.Center,
             )
         }
+    }
+}
+
+@Composable
+private fun LanguageChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                if (selected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.surface,
+            )
+            .clickable { onClick() }
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -470,7 +557,7 @@ fun BrandedTopBar(
             IconButton(onClick = onBack) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.editor_back),
                     tint = MaterialTheme.colorScheme.onBackground,
                 )
             }

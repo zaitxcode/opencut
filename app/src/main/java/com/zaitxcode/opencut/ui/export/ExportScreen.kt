@@ -38,6 +38,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import androidx.compose.ui.res.stringResource
+import com.zaitxcode.opencut.R
 
 private data class Resolution(
     val label: String,
@@ -90,10 +92,10 @@ fun ExportScreen(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OutlinedButton(onClick = onBack) { Text("Back") }
+                OutlinedButton(onClick = onBack) { Text(stringResource(R.string.editor_back)) }
                 Spacer(Modifier.height(1.dp))
                 Text(
-                    text = "Export",
+                    text = stringResource(R.string.export_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground,
@@ -109,7 +111,7 @@ fun ExportScreen(
                 .padding(20.dp),
         ) {
             Text(
-                text = "Resolution",
+                text = stringResource(R.string.export_resolution),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -137,7 +139,7 @@ fun ExportScreen(
             }
 
             Text(
-                text = "Frame rate",
+                text = stringResource(R.string.export_frame_rate),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 20.dp),
@@ -158,7 +160,7 @@ fun ExportScreen(
                             androidx.compose.material3.ButtonDefaults.outlinedButtonColors()
                         },
                     ) {
-                        Text("$option fps")
+                        Text(stringResource(R.string.export_frame_rate_value, option))
                     }
                 }
             }
@@ -184,7 +186,7 @@ fun ExportScreen(
             result?.let { file ->
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    text = "Saved to ${file.name}",
+                    text = stringResource(R.string.export_saved, file.name),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onBackground,
                 )
@@ -200,14 +202,14 @@ fun ExportScreen(
                         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     runCatching { context.startActivity(intent) }
                 }) {
-                    Text("Open")
+                    Text(stringResource(R.string.export_open))
                 }
             }
 
             error?.let {
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    text = "Export failed: $it",
+                    text = stringResource(R.string.export_failed) + ": $it",
                     style = MaterialTheme.typography.bodyMedium,
                     color = androidx.compose.ui.graphics.Color(0xFFFF6B6B),
                 )
@@ -245,7 +247,7 @@ fun ExportScreen(
                 enabled = project != null && !running,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Export")
+                Text(stringResource(R.string.export_start))
             }
         }
     }

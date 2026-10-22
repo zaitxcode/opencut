@@ -8,7 +8,6 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.net.Uri
 import android.opengl.GLES20
-import android.opengl.GLSurfaceView
 import android.util.Log
 import com.zaitxcode.opencut.core.model.Adjustment
 import com.zaitxcode.opencut.core.model.Clip
@@ -27,6 +26,8 @@ data class RenderLayer(
     val kind: LayerKind,
     val uri: String,
     val content: String,
+    /** Extra payload of the layer: the shape id of a sticker. */
+    val payload: String = "",
     val clip: Clip,
     val adjustment: Adjustment,
     val filter: FilterSpec?,
@@ -61,7 +62,7 @@ data class RenderState(
  * receives a [RenderState] snapshot built from the project model, so the editor can
  * keep mutating its own state while the GL thread renders independently.
  */
-class PreviewRenderer(private val context: Context) : GLSurfaceView.Renderer {
+class PreviewRenderer(private val context: Context) {
 
     @Volatile
     var state: RenderState = RenderState()
@@ -73,20 +74,20 @@ class PreviewRenderer(private val context: Context) : GLSurfaceView.Renderer {
     private val textures = ConcurrentHashMap<String, Int>()
     private val composer = FrameComposer()
 
-    override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+    fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         composer.init()
     }
 
     private var surfaceWidth = 0
     private var surfaceHeight = 0
 
-    override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
+    fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
         surfaceWidth = width
         surfaceHeight = height
         GLES20.glViewport(0, 0, width, height)
     }
 
-    override fun onDrawFrame(gl: GL10?) {
+    fun onDrawFrame(gl: GL10?) {
         val current = state
         val project = current.project
         composer.clear(current.backgroundColor)
@@ -139,7 +140,7 @@ class PreviewRenderer(private val context: Context) : GLSurfaceView.Renderer {
 
         LayerKind.IMAGE, LayerKind.TEXT, LayerKind.STICKER -> {
             textures.getOrPut(layer.segmentId) {
-                GlUtil.createTextureFromBitmap(bitmapFor(layer))
+                GlUtil.createTextureFromBitmap(LayerBitmaps.render(layer))
             }
         }
     }
@@ -153,35 +154,6 @@ class PreviewRenderer(private val context: Context) : GLSurfaceView.Renderer {
         }
         decoders[layer.materialId] = created
         return created
-    }
-
-    private fun bitmapFor(layer: RenderLayer): Bitmap {
-        val width = if (layer.sourceWidth > 0) layer.sourceWidth else 1080
-        val height = if (layer.sourceHeight > 0) layer.sourceHeight else 1920
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        when (layer.kind) {
-            LayerKind.TEXT -> {
-                val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    color = Color.WHITE
-                    textSize = height * 0.06f
-                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                    textAlign = Paint.Align.CENTER
-                }
-                canvas.drawText(layer.content, width / 2f, height / 2f, paint)
-            }
-
-            LayerKind.STICKER -> {
-                val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
-                val size = height * 0.2f
-                canvas.drawCircle(width / 2f, height / 2f, size / 2f, paint)
-                paint.color = Color.argb(160, 0, 0, 0)
-                canvas.drawCircle(width / 2f, height / 2f, size / 2.6f, paint)
-            }
-
-            else -> canvas.drawColor(Color.DKGRAY)
-        }
-        return bitmap
     }
 
     /** Releases every decoder and texture owned by the renderer. */
@@ -222,19 +194,39 @@ class PreviewRenderer(private val context: Context) : GLSurfaceView.Renderer {
                         .mapNotNull { project.materials.find(it) }
                         .firstOrNull { it.kind == MaterialKind.FILTER }
                         ?.filter
+                    // Keyframes override the static values of the layer at the
+                    // current playhead, so an animated clip moves while it plays.
+                    val localUs = (playheadUs - segment.target.start).coerceAtLeast(0L)
+                    val frame = project.keyframes.evaluate(segment.id, localUs)
+                    val clip = if (frame == null) {
+                        segment.clip
+                    } else {
+                        segment.clip.copy(
+                            transform = frame.position,
+                            scale = frame.scale,
+                            rotation = frame.rotation,
+                            alpha = frame.alpha,
+                        )
+                    }
+                    val adjustment = frame?.adjustment ?: material.adjust
+
                     trackLayers += RenderLayer(
                         segmentId = segment.id,
                         materialId = segment.materialId,
                         kind = kind,
                         uri = resolvedUris[segment.materialId] ?: material.path,
                         content = material.content,
-                        clip = segment.clip,
-                        adjustment = material.adjust,
+                        payload = material.resourceId,
+                        clip = clip,
+                        adjustment = adjustment,
                         filter = filterSpec,
                         sourceStartUs = segment.source.start,
                         sourceDurationUs = segment.source.duration,
-                        sourceWidth = material.width,
-                        sourceHeight = material.height,
+                        // Layers that are drawn by the app itself (text, stickers)
+                        // have no intrinsic size, so they use the canvas size: the
+                        // texture then matches the quad one to one and stays sharp.
+                        sourceWidth = if (material.width > 0) material.width else project.canvas.width,
+                        sourceHeight = if (material.height > 0) material.height else project.canvas.height,
                         targetStartUs = segment.target.start,
                         targetDurationUs = segment.target.duration,
                         speed = segment.speed,

@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenCut</string>
+
+    <!-- Home -->
+    <string name="home_title">المشاريع</string>
+    <string name="home_new_project">مشروع جديد</string>
+    <string name="home_empty">لا توجد مشاريع بعد. اضغط "مشروع جديد" لبدء التعديل.</string>
+    <string name="home_subtitle">محرر فيديو مفتوح المصدر</string>
+    <string name="home_free_badge">مجاني للأبد</string>
+    <string name="home_refresh">تحديث</string>
+    <string name="home_delete">حذف</string>
+    <string name="home_clips">%1$d مقطع · %2$s</string>
+    <string name="home_open">فتح</string>
+    <string name="home_account">الحساب</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_title">OpenCut</string>
+    <string name="onboarding_subtitle">محرر فيديو مفتوح المصدر</string>
+    <string name="onboarding_free_title">كل شيء مجاني</string>
+    <string name="onboarding_free_body">بلا اشتراك، بلا رصيد، وبلا علامة مائية.</string>
+    <string name="onboarding_account_title">لا حاجة إلى حساب</string>
+    <string name="onboarding_account_body">حرّر بدون إنترنت واحتفظ بمشاريعك على هذا الجهاز.</string>
+    <string name="onboarding_open_title">مفتوح المصدر</string>
+    <string name="onboarding_open_body">برخصة MIT، يمكن مراجعته وتطويره.</string>
+    <string name="onboarding_guest">المتابعة بدون حساب</string>
+    <string name="onboarding_account">إنشاء حساب محلي</string>
+
+    <!-- Account -->
+    <string name="account_title">الحساب</string>
+    <string name="account_guest">ضيف</string>
+    <string name="account_guest_body">أنت تعمل كضيف. كل الأدوات متاحة ولا يتم رفع أي شيء.</string>
+    <string name="account_name_label">الاسم الظاهر</string>
+    <string name="account_name_hint">اسمك</string>
+    <string name="account_save">حفظ</string>
+    <string name="account_saved">تم حفظ الملف الشخصي</string>
+    <string name="account_sign_out">حذف الملف الشخصي المحلي</string>
+    <string name="account_language">اللغة</string>
+    <string name="account_language_system">لغة النظام</string>
+    <string name="account_language_en">English</string>
+    <string name="account_language_ar">العربية</string>
+    <string name="account_about">حول التطبيق</string>
+    <string name="account_version">الإصدار %1$s</string>
+    <string name="account_licence">رخصة MIT · مجاني للأبد</string>
+
+    <!-- Editor chrome -->
+    <string name="editor_back">رجوع</string>
+    <string name="editor_undo">تراجع</string>
+    <string name="editor_redo">إعادة</string>
+    <string name="editor_export">تصدير</string>
+    <string name="editor_preview">المعاينة</string>
+    <string name="editor_play">تشغيل</string>
+    <string name="editor_pause">إيقاف</string>
+    <string name="editor_split">تقسيم</string>
+    <string name="editor_duplicate">تكرار</string>
+    <string name="editor_delete">حذف</string>
+
+    <!-- Dock tools -->
+    <string name="tool_media">وسائط</string>
+    <string name="tool_audio">صوت</string>
+    <string name="tool_text">نص</string>
+    <string name="tool_sticker">ملصق</string>
+    <string name="tool_filter">فلاتر</string>
+    <string name="tool_effect">مؤثرات</string>
+    <string name="tool_adjust">ضبط</string>
+    <string name="tool_transition">انتقال</string>
+    <string name="tool_speed">سرعة</string>
+    <string name="tool_volume">مستوى الصوت</string>
+    <string name="tool_crop">قص</string>
+    <string name="tool_ratio">النسبة</string>
+    <string name="tool_canvas">اللوحة</string>
+    <string name="tool_animate">تحريك</string>
+    <string name="tool_keyframe">إطارات مفتاحية</string>
+    <string name="tool_duplicate">تكرار</string>
+    <string name="tool_delete">حذف</string>
+    <string name="tool_split">تقسيم</string>
+
+    <!-- Media panel -->
+    <string name="media_add_video">فيديو</string>
+    <string name="media_add_photo">صورة</string>
+    <string name="media_add_audio">صوت</string>
+    <string name="media_browse">تصفح</string>
+    <string name="media_browse_title">على هذا الجهاز</string>
+    <string name="media_all">الكل</string>
+    <string name="media_empty">لا توجد وسائط على هذا الجهاز.</string>
+    <string name="media_add">إضافة</string>
+    <string name="media_hint">الفيديوهات والصور تُضاف إلى مسار الفيديو، والملفات الصوتية إلى مسار الصوت.</string>
+
+    <!-- Audio panel -->
+    <string name="audio_add">إضافة صوت</string>
+    <string name="audio_volume">مستوى الصوت</string>
+    <string name="audio_mute">كتم</string>
+    <string name="audio_unmute">إلغاء الكتم</string>
+
+    <!-- Text panel -->
+    <string name="text_hint">اكتب نصًا</string>
+    <string name="text_add">إضافة</string>
+
+    <!-- Stickers -->
+    <string name="sticker_circle">دائرة</string>
+    <string name="sticker_square">مربع</string>
+    <string name="sticker_star">نجمة</string>
+    <string name="sticker_heart">قلب</string>
+    <string name="sticker_arrow">سهم</string>
+    <string name="sticker_sparkle">لمعة</string>
+
+    <!-- Filters -->
+    <string name="filter_none">بدون</string>
+    <string name="filter_warm">دافئ</string>
+    <string name="filter_cool">بارد</string>
+    <string name="filter_vivid">زاهٍ</string>
+    <string name="filter_mono">أبيض وأسود</string>
+    <string name="filter_sepia">سيبيا</string>
+    <string name="filter_vintage">قديم</string>
+
+    <!-- Effects -->
+    <string name="effect_none">بدون</string>
+    <string name="effect_bright">تفتيح</string>
+    <string name="effect_dark">تعتيم</string>
+    <string name="effect_punch">حيوية</string>
+    <string name="effect_soft">نعومة</string>
+    <string name="effect_vignette">تظليل الحواف</string>
+    <string name="effect_grain">حبيبات</string>
+
+    <!-- Adjust -->
+    <string name="adjust_brightness">السطوع</string>
+    <string name="adjust_contrast">التباين</string>
+    <string name="adjust_saturation">التشبع</string>
+    <string name="adjust_temperature">درجة الحرارة</string>
+    <string name="adjust_highlights">الإضاءة</string>
+    <string name="adjust_shadows">الظلال</string>
+    <string name="adjust_fade">تلاشٍ</string>
+    <string name="adjust_vignette">تظليل الحواف</string>
+    <string name="adjust_grain">حبيبات</string>
+
+    <!-- Transition -->
+    <string name="transition_none">بدون</string>
+    <string name="transition_fade">تلاشٍ</string>
+    <string name="transition_dissolve">مزج متقاطع</string>
+    <string name="transition_slow">مزج بطيء</string>
+    <string name="transition_hint">ينتقل المقطع السابق إلى المقطع المحدد بتلاشٍ متقاطع.</string>
+
+    <!-- Crop -->
+    <string name="crop_scale">الحجم</string>
+    <string name="crop_rotation">الدوران</string>
+    <string name="crop_opacity">الشفافية</string>
+
+    <!-- Keyframes -->
+    <string name="keyframe_position">الموضع</string>
+    <string name="keyframe_scale">الحجم</string>
+    <string name="keyframe_opacity">الشفافية</string>
+    <string name="keyframe_adjust">الضبط</string>
+    <string name="keyframe_hint">يُحفظ الإطار المفتاحي عند موضع المؤشر. حرّك المؤشر وأضف إطارًا آخر لتحريك الطبقة.</string>
+
+    <!-- Hints -->
+    <string name="hint_select_layer">اختر طبقة على الخط الزمني أولًا.</string>
+
+    <!-- Export -->
+    <string name="export_title">تصدير</string>
+    <string name="export_resolution">الدقة</string>
+    <string name="export_frame_rate">معدل الإطارات</string>
+    <string name="export_frame_rate_value">%1$d إطار/ث</string>
+    <string name="export_start">تصدير</string>
+    <string name="export_cancel">إلغاء</string>
+    <string name="export_done">تم التصدير</string>
+    <string name="export_failed">فشل التصدير</string>
+    <string name="export_progress">جارٍ التصدير… %1$d%%</string>
+    <string name="export_saved">تم الحفظ في %1$s</string>
+    <string name="export_open">فتح</string>
+    <string name="export_opening">جارٍ التحضير…</string>
+
+    <!-- Common -->
+    <string name="common_cancel">إلغاء</string>
+    <string name="common_ok">حسنًا</string>
+    <string name="common_save">حفظ</string>
+    <string name="common_reset">إعادة تعيين</string>
+    <string name="common_done">تم</string>
+    <string name="common_untitled">بدون اسم</string>
+</resources>

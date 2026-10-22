@@ -73,6 +73,18 @@ class ExportEngine(private val context: Context) {
         var videoTrack = -1
         var audioTrack = -1
 
+        // The audio is encoded first: a muxer only accepts a new track while it
+        // has not been started, and the audio track has to exist before the
+        // container is started with the video track.
+        val encodedAudio = if (settings.includeAudio) {
+            runCatching { AudioMixer(context).encode(project, durationUs) }.getOrNull()
+        } else {
+            null
+        }
+        if (encodedAudio != null) {
+            audioTrack = muxer.addTrack(encodedAudio.format)
+        }
+
         // ------------------------------------------------------------- video --
         val videoFormat = MediaFormat.createVideoFormat(
             MediaFormat.MIMETYPE_VIDEO_AVC,
@@ -98,7 +110,6 @@ class ExportEngine(private val context: Context) {
         val composer = FrameComposer()
         composer.init()
 
-        val layers = PreviewRenderer.buildState(project, 0L).layers
         val decoders = HashMap<String, com.zaitxcode.opencut.core.render.VideoDecoder>()
         val textures = HashMap<String, Int>()
         // LUT ids are owned by the GL context that created them, so the exporter keeps
@@ -108,9 +119,13 @@ class ExportEngine(private val context: Context) {
         val bufferInfo = MediaCodec.BufferInfo()
         var muxerStarted = false
         var framesEncoded = 0
+        var audioCursor = 0
 
         for (frameIndex in 0 until frameCount) {
             val playheadUs = frameIndex * 1_000_000L / settings.frameRate
+            // The layer list is rebuilt for every frame: transitions and keyframes
+            // depend on the playhead, so a static list would freeze the animation.
+            val layers = PreviewRenderer.buildState(project, playheadUs).layers
             composer.clear(project.canvas.backgroundColor)
             composer.setViewport(
                 project.canvas.width,
@@ -149,7 +164,7 @@ class ExportEngine(private val context: Context) {
 
                     else -> textures.getOrPut(layer.segmentId) {
                         com.zaitxcode.opencut.core.render.GlUtil.createTextureFromBitmap(
-                            textBitmap(layer, project.canvas.width, project.canvas.height),
+                            com.zaitxcode.opencut.core.render.LayerBitmaps.render(layer),
                         )
                     }
                 } ?: continue
@@ -195,6 +210,20 @@ class ExportEngine(private val context: Context) {
                 if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) break
             }
 
+            // The audio packets are written in between so that the container
+            // keeps both tracks in chronological order.
+            if (muxerStarted && encodedAudio != null) {
+                while (audioCursor < encodedAudio.samples.size &&
+                    encodedAudio.samples[audioCursor].presentationTimeUs <= playheadUs
+                ) {
+                    val sample = encodedAudio.samples[audioCursor++]
+                    val info = MediaCodec.BufferInfo().apply {
+                        set(0, sample.data.size, sample.presentationTimeUs, sample.flags)
+                    }
+                    muxer.writeSampleData(audioTrack, java.nio.ByteBuffer.wrap(sample.data), info)
+                }
+            }
+
             framesEncoded++
             if (frameIndex % 4 == 0) {
                 onProgress(
@@ -236,13 +265,16 @@ class ExportEngine(private val context: Context) {
         decoders.values.forEach { runCatching { it.release() } }
 
         // ------------------------------------------------------------- audio --
-        if (settings.includeAudio) {
-            onProgress(ExportProgress(percent = 85, stage = "Mixing audio"))
-            audioTrack = AudioMixer(context).encodeInto(
-                project = project,
-                durationUs = durationUs,
-                muxer = muxer,
-            )
+        if (muxerStarted && encodedAudio != null) {
+            // Whatever is left of the audio is written now, so that the last
+            // packet is never dropped.
+            while (audioCursor < encodedAudio.samples.size) {
+                val sample = encodedAudio.samples[audioCursor++]
+                val info = MediaCodec.BufferInfo().apply {
+                    set(0, sample.data.size, sample.presentationTimeUs, sample.flags)
+                }
+                muxer.writeSampleData(audioTrack, java.nio.ByteBuffer.wrap(sample.data), info)
+            }
         }
 
         if (muxerStarted) {
@@ -253,26 +285,6 @@ class ExportEngine(private val context: Context) {
         output
     }
 
-    /** Renders the text of a layer into a bitmap that can be used as a texture. */
-    private fun textBitmap(
-        layer: RenderLayer,
-        canvasWidth: Int,
-        canvasHeight: Int,
-    ): android.graphics.Bitmap {
-        val bitmap = android.graphics.Bitmap.createBitmap(
-            canvasWidth,
-            canvasHeight,
-            android.graphics.Bitmap.Config.ARGB_8888,
-        )
-        val canvas = android.graphics.Canvas(bitmap)
-        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            color = android.graphics.Color.WHITE
-            textSize = canvasHeight * 0.06f
-            textAlign = android.graphics.Paint.Align.CENTER
-        }
-        canvas.drawText(layer.content, canvasWidth / 2f, canvasHeight / 2f, paint)
-        return bitmap
-    }
 }
 
 /**

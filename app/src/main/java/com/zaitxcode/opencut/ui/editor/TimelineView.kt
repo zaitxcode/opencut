@@ -39,6 +39,8 @@ import com.zaitxcode.opencut.core.model.Project
 import com.zaitxcode.opencut.core.model.Segment
 import kotlin.math.max
 import kotlin.math.roundToLong
+import androidx.compose.ui.res.stringResource
+import com.zaitxcode.opencut.R
 
 /** Height of a single track lane, in density independent pixels. */
 private val TRACK_HEIGHT = 52.dp
@@ -90,13 +92,13 @@ fun TimelineView(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onSplit) {
-                Icon(Icons.Default.ContentCut, contentDescription = "Split", tint = MaterialTheme.colorScheme.onSurface)
+                Icon(Icons.Default.ContentCut, contentDescription = stringResource(R.string.editor_split), tint = MaterialTheme.colorScheme.onSurface)
             }
             IconButton(onClick = onDuplicate) {
-                Icon(Icons.Default.ContentCopy, contentDescription = "Duplicate", tint = MaterialTheme.colorScheme.onSurface)
+                Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.editor_duplicate), tint = MaterialTheme.colorScheme.onSurface)
             }
             IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onSurface)
+                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.editor_delete), tint = MaterialTheme.colorScheme.onSurface)
             }
             Text(
                 text = formatTimelineTime(playheadUs),
@@ -297,9 +299,10 @@ private fun DrawScope.drawTracks(
             size = Size(size.width, trackHeight),
         )
         track.segments.forEach { segment ->
-            val dragging = dragState?.segmentId == segment.id
-            val startUs = if (dragging) {
-                when (dragState!!.mode) {
+            val drag = dragState?.takeIf { it.segmentId == segment.id }
+            val dragging = drag != null
+            val startUs = if (drag != null) {
+                when (drag.mode) {
                     HitMode.MOVE -> (dragState.originStartUs + dragState.deltaUs).coerceAtLeast(0L)
                     HitMode.LEFT -> (dragState.originStartUs + dragState.deltaUs).coerceAtLeast(0L)
                     HitMode.RIGHT -> dragState.originStartUs
@@ -307,8 +310,8 @@ private fun DrawScope.drawTracks(
             } else {
                 segment.target.start
             }
-            val durationUs = if (dragging) {
-                when (dragState!!.mode) {
+            val durationUs = if (drag != null) {
+                when (drag.mode) {
                     HitMode.MOVE -> segment.target.duration
                     HitMode.LEFT -> (dragState.originDurationUs - (startUs - dragState.originStartUs))
                         .coerceAtLeast(MIN_CLIP_US)

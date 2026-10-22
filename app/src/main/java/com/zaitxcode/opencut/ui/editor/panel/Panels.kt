@@ -1,5 +1,8 @@
 package com.zaitxcode.opencut.ui.editor.panel
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -8,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,16 +19,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,14 +41,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.zaitxcode.opencut.R
+import com.zaitxcode.opencut.core.media.DeviceMedia
+import com.zaitxcode.opencut.core.media.DeviceMediaItem
+import com.zaitxcode.opencut.core.media.MediaKind
 import com.zaitxcode.opencut.core.model.Adjustment
 import com.zaitxcode.opencut.core.model.KeyframeKind
 import com.zaitxcode.opencut.core.model.Project
 import com.zaitxcode.opencut.core.model.Segment
 import com.zaitxcode.opencut.ui.editor.EditorViewModel
 import com.zaitxcode.opencut.ui.editor.ToolChip
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** The tools that can open a panel from the dock. */
 enum class Tool {
@@ -74,9 +91,9 @@ fun PanelHost(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(190.dp)
+            .height(200.dp)
             .background(MaterialTheme.colorScheme.surface)
-            .padding(vertical = 10.dp),
+            .padding(vertical = 8.dp),
     ) {
         when (tool) {
             Tool.MEDIA -> MediaPanel(viewModel)
@@ -102,7 +119,7 @@ private fun PanelTitle(text: String) {
         style = MaterialTheme.typography.labelLarge,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
+        modifier = Modifier.padding(start = 16.dp, bottom = 6.dp),
     )
 }
 
@@ -110,12 +127,21 @@ private fun PanelTitle(text: String) {
 
 @Composable
 private fun MediaPanel(viewModel: EditorViewModel) {
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia(10),
+    val mediaLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(20),
     ) { uris -> viewModel.importMedia(uris) }
 
+    val photoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(20),
+    ) { uris -> viewModel.importMedia(uris) }
+
+    val audioLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri -> uri?.let { viewModel.importMedia(listOf(it)) } }
+    var browsing by remember { mutableStateOf(false) }
+
     Column {
-        PanelTitle("Media")
+        PanelTitle(stringResource(R.string.tool_media))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -123,17 +149,149 @@ private fun MediaPanel(viewModel: EditorViewModel) {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             ToolChip(
-                label = "Add from device",
+                label = stringResource(R.string.media_add_video),
                 selected = false,
                 onClick = {
-                    launcher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo),
+                    mediaLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly),
                     )
                 },
             )
-            ToolChip(label = "Add photo", selected = false, onClick = {
-                launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            })
+            ToolChip(
+                label = stringResource(R.string.media_add_photo),
+                selected = false,
+                onClick = {
+                    photoLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                    )
+                },
+            )
+            ToolChip(
+                label = stringResource(R.string.media_add_audio),
+                selected = false,
+                onClick = { audioLauncher.launch(arrayOf("audio/*")) },
+            )
+            ToolChip(
+                label = stringResource(R.string.media_browse),
+                selected = false,
+                onClick = { browsing = true },
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Hint(stringResource(R.string.media_hint))
+    }
+
+    if (browsing) {
+        DeviceMediaSheet(
+            onDismiss = { browsing = false },
+            onPick = { uri ->
+                browsing = false
+                viewModel.importMedia(listOf(uri))
+            },
+        )
+    }
+}
+
+/**
+ * Lists the media library of the device and imports the item that is tapped.
+ *
+ * It is the reliable way to add material: the system picker hides files on some
+ * devices, while the library below always shows what the gallery has.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DeviceMediaSheet(
+    onDismiss: () -> Unit,
+    onPick: (android.net.Uri) -> Unit,
+) {
+    val context = LocalContext.current
+    var filter by remember { mutableStateOf<MediaKind?>(null) }
+    var items by remember { mutableStateOf<List<DeviceMediaItem>>(emptyList()) }
+    var allowed by remember { mutableStateOf(hasMediaPermission(context)) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { granted ->
+        allowed = granted.values.any { it }
+    }
+
+    LaunchedEffect(filter, allowed) {
+        if (allowed) {
+            items = withContext(Dispatchers.IO) { DeviceMedia.list(context, filter) }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!allowed) permissionLauncher.launch(mediaPermissions())
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(modifier = Modifier.padding(bottom = 24.dp)) {
+            PanelTitle(stringResource(R.string.media_browse_title))
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ToolChip(
+                    label = stringResource(R.string.media_all),
+                    selected = filter == null,
+                    onClick = { filter = null },
+                )
+                ToolChip(
+                    label = stringResource(R.string.tool_media),
+                    selected = filter == MediaKind.VIDEO,
+                    onClick = { filter = MediaKind.VIDEO },
+                )
+                ToolChip(
+                    label = stringResource(R.string.media_add_photo),
+                    selected = filter == MediaKind.IMAGE,
+                    onClick = { filter = MediaKind.IMAGE },
+                )
+                ToolChip(
+                    label = stringResource(R.string.media_add_audio),
+                    selected = filter == MediaKind.AUDIO,
+                    onClick = { filter = MediaKind.AUDIO },
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            if (items.isEmpty()) {
+                Hint(stringResource(R.string.media_empty))
+            } else {
+                LazyColumn(modifier = Modifier.height(320.dp)) {
+                    items(items.size) { index ->
+                        val item = items[index]
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onPick(item.uri) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    text = item.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text = when (item.kind) {
+                                        MediaKind.VIDEO -> stringResource(R.string.media_add_video)
+                                        MediaKind.IMAGE -> stringResource(R.string.media_add_photo)
+                                        MediaKind.AUDIO -> stringResource(R.string.media_add_audio)
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Text(
+                                text = stringResource(R.string.media_add),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -142,14 +300,28 @@ private fun MediaPanel(viewModel: EditorViewModel) {
 
 @Composable
 private fun AudioPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
+    val audioLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri -> uri?.let { viewModel.importMedia(listOf(it)) } }
+
     Column {
-        PanelTitle("Audio")
+        PanelTitle(stringResource(R.string.tool_audio))
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            ToolChip(
+                label = stringResource(R.string.audio_add),
+                selected = false,
+                onClick = { audioLauncher.launch(arrayOf("audio/*")) },
+            )
+        }
         if (selectedSegment == null) {
-            Hint("Select a layer to change its audio")
+            Hint(stringResource(R.string.hint_select_layer))
             return@Column
         }
         LabeledSlider(
-            label = "Volume",
+            label = stringResource(R.string.audio_volume),
             value = selectedSegment.volume,
             range = 0f..2f,
         ) { viewModel.setVolume(it) }
@@ -158,7 +330,8 @@ private fun AudioPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             ToolChip(
-                label = if (selectedSegment.muted) "Unmute" else "Mute",
+                label = if (selectedSegment.muted) stringResource(R.string.audio_unmute)
+                else stringResource(R.string.audio_mute),
                 selected = selectedSegment.muted,
                 onClick = { viewModel.setMuted(!selectedSegment.muted) },
             )
@@ -172,7 +345,7 @@ private fun AudioPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
 private fun TextPanel(viewModel: EditorViewModel) {
     var text by remember { mutableStateOf("") }
     Column {
-        PanelTitle("Text")
+        PanelTitle(stringResource(R.string.tool_text))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -183,12 +356,12 @@ private fun TextPanel(viewModel: EditorViewModel) {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                placeholder = { Text("Type something") },
+                placeholder = { Text(stringResource(R.string.text_hint)) },
                 singleLine = true,
                 modifier = Modifier.weight(1f),
             )
             ToolChip(
-                label = "Add",
+                label = stringResource(R.string.text_add),
                 selected = false,
                 onClick = {
                     if (text.isNotBlank()) {
@@ -203,30 +376,36 @@ private fun TextPanel(viewModel: EditorViewModel) {
 
 // ---------------------------------------------------------------- sticker ---
 
+private data class StickerPreset(
+    val id: String,
+    val labelRes: Int,
+)
+
 private val stickerPresets = listOf(
-    "circle" to "Circle",
-    "square" to "Square",
-    "star" to "Star",
-    "heart" to "Heart",
-    "arrow" to "Arrow",
-    "sparkle" to "Sparkle",
+    StickerPreset("circle", R.string.sticker_circle),
+    StickerPreset("square", R.string.sticker_square),
+    StickerPreset("star", R.string.sticker_star),
+    StickerPreset("heart", R.string.sticker_heart),
+    StickerPreset("arrow", R.string.sticker_arrow),
+    StickerPreset("sparkle", R.string.sticker_sparkle),
 )
 
 @Composable
 private fun StickerPanel(viewModel: EditorViewModel) {
     Column {
-        PanelTitle("Sticker")
+        PanelTitle(stringResource(R.string.tool_sticker))
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(stickerPresets.size) { index ->
-                val (id, name) = stickerPresets[index]
+                val preset = stickerPresets[index]
+                val label = stringResource(preset.labelRes)
                 ToolChip(
-                    label = name,
+                    label = label,
                     selected = false,
-                    onClick = { viewModel.addSticker(id, name) },
+                    onClick = { viewModel.addSticker(preset.id, label) },
                 )
             }
         }
@@ -237,31 +416,31 @@ private fun StickerPanel(viewModel: EditorViewModel) {
 
 private data class FilterPreset(
     val id: String,
-    val name: String,
+    val labelRes: Int,
     val tint: Color,
 )
 
 private val filterPresets = listOf(
-    FilterPreset("NONE", "None", Color(0xFF44464E)),
-    FilterPreset("WARM", "Warm", Color(0xFFE08A3C)),
-    FilterPreset("COOL", "Cool", Color(0xFF3C8AE0)),
-    FilterPreset("VIVID", "Vivid", Color(0xFFD03CE0)),
-    FilterPreset("MONO", "Mono", Color(0xFF9E9E9E)),
-    FilterPreset("SEPIA", "Sepia", Color(0xFF9C8E7A)),
-    FilterPreset("VINTAGE", "Vintage", Color(0xFF6F7D5B)),
+    FilterPreset("NONE", R.string.filter_none, Color(0xFF44464E)),
+    FilterPreset("WARM", R.string.filter_warm, Color(0xFFE08A3C)),
+    FilterPreset("COOL", R.string.filter_cool, Color(0xFF3C8AE0)),
+    FilterPreset("VIVID", R.string.filter_vivid, Color(0xFFD03CE0)),
+    FilterPreset("MONO", R.string.filter_mono, Color(0xFF9E9E9E)),
+    FilterPreset("SEPIA", R.string.filter_sepia, Color(0xFF9C8E7A)),
+    FilterPreset("VINTAGE", R.string.filter_vintage, Color(0xFF6F7D5B)),
 )
 
 @Composable
 private fun FilterPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
     Column {
-        PanelTitle("Filters")
+        PanelTitle(stringResource(R.string.tool_filter))
         if (selectedSegment == null) {
-            Hint("Select a layer to apply a filter")
+            Hint(stringResource(R.string.hint_select_layer))
             return@Column
         }
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(filterPresets.size) { index ->
@@ -278,13 +457,13 @@ private fun FilterPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(44.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(preset.tint),
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = preset.name,
+                        text = stringResource(preset.labelRes),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -298,37 +477,37 @@ private fun FilterPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
 
 private data class EffectPreset(
     val id: String,
-    val name: String,
+    val labelRes: Int,
     val adjustment: (Adjustment) -> Adjustment,
 )
 
 private val effectPresets = listOf(
-    EffectPreset("none", "None") { it },
-    EffectPreset("bright", "Brighten") { it.copy(brightness = 0.18f, lightSensation = 0.2f) },
-    EffectPreset("dark", "Darken") { it.copy(brightness = -0.15f) },
-    EffectPreset("vivid", "Punch") { it.copy(contrast = 0.3f, saturation = 0.35f) },
-    EffectPreset("soft", "Soft") { it.copy(fade = 0.35f) },
-    EffectPreset("vignette", "Vignette") { it.copy(vignette = 0.6f) },
-    EffectPreset("grain", "Grain") { it.copy(grain = 0.5f) },
+    EffectPreset("none", R.string.effect_none) { it },
+    EffectPreset("bright", R.string.effect_bright) { it.copy(brightness = 0.18f, lightSensation = 0.2f) },
+    EffectPreset("dark", R.string.effect_dark) { it.copy(brightness = -0.15f) },
+    EffectPreset("vivid", R.string.effect_punch) { it.copy(contrast = 0.3f, saturation = 0.35f) },
+    EffectPreset("soft", R.string.effect_soft) { it.copy(fade = 0.35f) },
+    EffectPreset("vignette", R.string.effect_vignette) { it.copy(vignette = 0.6f) },
+    EffectPreset("grain", R.string.effect_grain) { it.copy(grain = 0.5f) },
 )
 
 @Composable
 private fun EffectPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
     Column {
-        PanelTitle("Effects")
+        PanelTitle(stringResource(R.string.tool_effect))
         if (selectedSegment == null) {
-            Hint("Select a layer to apply an effect")
+            Hint(stringResource(R.string.hint_select_layer))
             return@Column
         }
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(effectPresets.size) { index ->
                 val preset = effectPresets[index]
                 ToolChip(
-                    label = preset.name,
+                    label = stringResource(preset.labelRes),
                     selected = false,
                     onClick = { viewModel.applyAdjustment { preset.adjustment(it) } },
                 )
@@ -342,8 +521,8 @@ private fun EffectPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
 @Composable
 private fun AdjustPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
     if (selectedSegment == null) {
-        PanelTitle("Adjust")
-        Hint("Select a layer to adjust it")
+        PanelTitle(stringResource(R.string.tool_adjust))
+        Hint(stringResource(R.string.hint_select_layer))
         return
     }
     val material = viewModel.project.value.materials.find(selectedSegment.materialId)
@@ -351,32 +530,32 @@ private fun AdjustPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
     Column(
         modifier = Modifier.verticalScroll(rememberScrollState()),
     ) {
-        PanelTitle("Adjust")
-        LabeledSlider("Brightness", adjust.brightness, -1f..1f) { v ->
+        PanelTitle(stringResource(R.string.tool_adjust))
+        LabeledSlider(stringResource(R.string.adjust_brightness), adjust.brightness, -1f..1f) { v ->
             viewModel.applyAdjustment { it.copy(brightness = v) }
         }
-        LabeledSlider("Contrast", adjust.contrast, -1f..1f) { v ->
+        LabeledSlider(stringResource(R.string.adjust_contrast), adjust.contrast, -1f..1f) { v ->
             viewModel.applyAdjustment { it.copy(contrast = v) }
         }
-        LabeledSlider("Saturation", adjust.saturation, -1f..1f) { v ->
+        LabeledSlider(stringResource(R.string.adjust_saturation), adjust.saturation, -1f..1f) { v ->
             viewModel.applyAdjustment { it.copy(saturation = v) }
         }
-        LabeledSlider("Temperature", adjust.temperature, -1f..1f) { v ->
+        LabeledSlider(stringResource(R.string.adjust_temperature), adjust.temperature, -1f..1f) { v ->
             viewModel.applyAdjustment { it.copy(temperature = v) }
         }
-        LabeledSlider("Highlights", adjust.highlight, -1f..1f) { v ->
+        LabeledSlider(stringResource(R.string.adjust_highlights), adjust.highlight, -1f..1f) { v ->
             viewModel.applyAdjustment { it.copy(highlight = v) }
         }
-        LabeledSlider("Shadows", adjust.shadow, -1f..1f) { v ->
+        LabeledSlider(stringResource(R.string.adjust_shadows), adjust.shadow, -1f..1f) { v ->
             viewModel.applyAdjustment { it.copy(shadow = v) }
         }
-        LabeledSlider("Fade", adjust.fade, 0f..1f) { v ->
+        LabeledSlider(stringResource(R.string.adjust_fade), adjust.fade, 0f..1f) { v ->
             viewModel.applyAdjustment { it.copy(fade = v) }
         }
-        LabeledSlider("Vignette", adjust.vignette, 0f..1f) { v ->
+        LabeledSlider(stringResource(R.string.adjust_vignette), adjust.vignette, 0f..1f) { v ->
             viewModel.applyAdjustment { it.copy(vignette = v) }
         }
-        LabeledSlider("Grain", adjust.grain, 0f..1f) { v ->
+        LabeledSlider(stringResource(R.string.adjust_grain), adjust.grain, 0f..1f) { v ->
             viewModel.applyAdjustment { it.copy(grain = v) }
         }
     }
@@ -384,42 +563,48 @@ private fun AdjustPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
 
 // ------------------------------------------------------------- transition ---
 
+private data class TransitionPreset(
+    val nameRes: Int,
+    val durationUs: Long,
+)
+
 private val transitionPresets = listOf(
-    "Fade" to 500_000L,
-    "Cross dissolve" to 800_000L,
-    "Slow dissolve" to 1_500_000L,
+    TransitionPreset(R.string.transition_fade, 500_000L),
+    TransitionPreset(R.string.transition_dissolve, 800_000L),
+    TransitionPreset(R.string.transition_slow, 1_500_000L),
 )
 
 @Composable
 private fun TransitionPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
     Column {
-        PanelTitle("Transition")
+        PanelTitle(stringResource(R.string.tool_transition))
         if (selectedSegment == null) {
-            Hint("Select a clip to add a transition")
+            Hint(stringResource(R.string.hint_select_layer))
             return@Column
         }
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
                 ToolChip(
-                    label = "None",
+                    label = stringResource(R.string.transition_none),
                     selected = false,
                     onClick = { viewModel.clearTransition() },
                 )
             }
             items(transitionPresets.size) { index ->
-                val (name, duration) = transitionPresets[index]
+                val preset = transitionPresets[index]
+                val label = stringResource(preset.nameRes)
                 ToolChip(
-                    label = name,
+                    label = label,
                     selected = false,
-                    onClick = { viewModel.applyTransition(name, duration) },
+                    onClick = { viewModel.applyTransition(label, preset.durationUs) },
                 )
             }
         }
-        Hint("The transition cross fades the previous clip into the selected one")
+        Hint(stringResource(R.string.transition_hint))
     }
 }
 
@@ -428,14 +613,14 @@ private fun TransitionPanel(selectedSegment: Segment?, viewModel: EditorViewMode
 @Composable
 private fun SpeedPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
     Column {
-        PanelTitle("Speed")
+        PanelTitle(stringResource(R.string.tool_speed))
         if (selectedSegment == null) {
-            Hint("Select a clip to change its speed")
+            Hint(stringResource(R.string.hint_select_layer))
             return@Column
         }
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(listOf(0.25f, 0.5f, 0.75f, 1f, 1.5f, 2f, 3f, 4f)) { speed ->
@@ -451,30 +636,36 @@ private fun SpeedPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
 
 // ---------------------------------------------------------------- canvas ---
 
+private data class CanvasPreset(
+    val ratio: String,
+    val width: Int,
+    val height: Int,
+)
+
 private val canvasRatios = listOf(
-    Triple("9:16", 1080, 1920),
-    Triple("16:9", 1920, 1080),
-    Triple("1:1", 1080, 1080),
-    Triple("4:3", 1440, 1080),
-    Triple("3:4", 1080, 1440),
-    Triple("21:9", 2560, 1080),
+    CanvasPreset("9:16", 1080, 1920),
+    CanvasPreset("16:9", 1920, 1080),
+    CanvasPreset("1:1", 1080, 1080),
+    CanvasPreset("4:3", 1440, 1080),
+    CanvasPreset("3:4", 1080, 1440),
+    CanvasPreset("21:9", 2560, 1080),
 )
 
 @Composable
 private fun CanvasPanel(project: Project, viewModel: EditorViewModel) {
     Column {
-        PanelTitle("Canvas")
+        PanelTitle(stringResource(R.string.tool_canvas))
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(canvasRatios.size) { index ->
-                val (ratio, width, height) = canvasRatios[index]
+                val preset = canvasRatios[index]
                 ToolChip(
-                    label = ratio,
-                    selected = project.canvas.ratio == ratio,
-                    onClick = { viewModel.setCanvasRatio(ratio, width, height) },
+                    label = preset.ratio,
+                    selected = project.canvas.ratio == preset.ratio,
+                    onClick = { viewModel.setCanvasRatio(preset.ratio, preset.width, preset.height) },
                 )
             }
         }
@@ -486,19 +677,31 @@ private fun CanvasPanel(project: Project, viewModel: EditorViewModel) {
 @Composable
 private fun CropPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
     if (selectedSegment == null) {
-        PanelTitle("Crop")
-        Hint("Select a clip to crop it")
+        PanelTitle(stringResource(R.string.tool_crop))
+        Hint(stringResource(R.string.hint_select_layer))
         return
     }
     Column {
-        PanelTitle("Crop")
-        LabeledSlider("Scale", selectedSegment.clip.scale.x, 0.2f..3f) { value ->
+        PanelTitle(stringResource(R.string.tool_crop))
+        LabeledSlider(
+            stringResource(R.string.crop_scale),
+            selectedSegment.clip.scale.x,
+            0.2f..3f,
+        ) { value ->
             viewModel.updateClip { it.copy(scale = com.zaitxcode.opencut.core.model.Scale(value, value)) }
         }
-        LabeledSlider("Rotation", selectedSegment.clip.rotation, -180f..180f) { value ->
+        LabeledSlider(
+            stringResource(R.string.crop_rotation),
+            selectedSegment.clip.rotation,
+            -180f..180f,
+        ) { value ->
             viewModel.updateClip { it.copy(rotation = value) }
         }
-        LabeledSlider("Opacity", selectedSegment.clip.alpha, 0f..1f) { value ->
+        LabeledSlider(
+            stringResource(R.string.crop_opacity),
+            selectedSegment.clip.alpha,
+            0f..1f,
+        ) { value ->
             viewModel.updateClip { it.copy(alpha = value) }
         }
     }
@@ -509,32 +712,51 @@ private fun CropPanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
 @Composable
 private fun KeyframePanel(selectedSegment: Segment?, viewModel: EditorViewModel) {
     Column {
-        PanelTitle("Keyframes")
+        PanelTitle(stringResource(R.string.tool_keyframe))
         if (selectedSegment == null) {
-            Hint("Select a layer to animate it")
+            Hint(stringResource(R.string.hint_select_layer))
             return@Column
         }
         Row(
             modifier = Modifier.padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            ToolChip(label = "Position", selected = false, onClick = {
+            ToolChip(label = stringResource(R.string.keyframe_position), selected = false, onClick = {
                 viewModel.addKeyframe(KeyframeKind.VIDEO)
             })
-            ToolChip(label = "Scale", selected = false, onClick = {
+            ToolChip(label = stringResource(R.string.keyframe_scale), selected = false, onClick = {
                 viewModel.addKeyframe(KeyframeKind.VIDEO)
             })
-            ToolChip(label = "Opacity", selected = false, onClick = {
+            ToolChip(label = stringResource(R.string.keyframe_opacity), selected = false, onClick = {
                 viewModel.addKeyframe(KeyframeKind.VIDEO)
             })
-            ToolChip(label = "Adjust", selected = false, onClick = {
+            ToolChip(label = stringResource(R.string.keyframe_adjust), selected = false, onClick = {
                 viewModel.addKeyframe(KeyframeKind.ADJUST)
             })
         }
+        Spacer(Modifier.height(6.dp))
+        Hint(stringResource(R.string.keyframe_hint))
     }
 }
 
 // ---------------------------------------------------------------- helpers ---
+
+/** The permissions that are needed to read the media library of the device. */
+private fun mediaPermissions(): Array<String> = when {
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> arrayOf(
+        Manifest.permission.READ_MEDIA_IMAGES,
+        Manifest.permission.READ_MEDIA_VIDEO,
+        Manifest.permission.READ_MEDIA_AUDIO,
+    )
+
+    else -> arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+}
+
+/** True when the app may read the media library. */
+private fun hasMediaPermission(context: android.content.Context): Boolean =
+    mediaPermissions().any {
+        ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+    }
 
 @Composable
 private fun Hint(text: String) {
@@ -542,7 +764,7 @@ private fun Hint(text: String) {
         text = text,
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
     )
 }
 
@@ -563,7 +785,7 @@ private fun LabeledSlider(
             text = label,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(88.dp),
+            modifier = Modifier.width(96.dp),
         )
         Slider(
             value = value.coerceIn(range.start, range.endInclusive),

@@ -78,13 +78,15 @@ is allowed to ship.
 
 ## What this is not
 
-This interface is **not** a CapCut integration. Specifically, the repository:
+This interface is **not** a client for a proprietary service. The repository:
 
-* contains no CapCut/ByteDance host name, API key, signature algorithm or CDN path;
-* does not call CapCut's effect, filter, template or music services;
-* does not download or embed any CapCut artwork, font, sound or template.
+* contains no third party host name, API key, signature algorithm or CDN path;
+* does not call the effect, filter, template or music services of a commercial
+  editor;
+* does not download or embed artwork, fonts, sounds or templates that belong to
+  somebody else.
 
 Those services are governed by their own terms, which do not permit third-party
-clients to consume them, and their content is proprietary. Point `HttpAssetProvider`
-at a server you operate, serving assets you made or licensed, and the editor will
-use them like any other catalogue.
+clients to consume them, and their content is proprietary. Point
+`HttpAssetProvider` at a server you operate, serving assets you made or licensed,
+and the editor will use them like any other catalogue.

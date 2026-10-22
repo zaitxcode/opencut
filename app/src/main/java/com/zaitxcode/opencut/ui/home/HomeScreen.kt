@@ -55,6 +55,8 @@ import com.zaitxcode.opencut.core.model.Project
 import com.zaitxcode.opencut.ui.theme.BrandLogo
 import com.zaitxcode.opencut.ui.theme.FreeBadge
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.zaitxcode.opencut.R
 
 /**
  * The project list.
@@ -104,7 +106,7 @@ fun HomeScreen(
                             if (profile == null) {
                                 Icon(
                                     Icons.Default.Person,
-                                    contentDescription = "Account",
+                                    contentDescription = stringResource(R.string.home_account),
                                     tint = Color.White,
                                     modifier = Modifier.size(20.dp),
                                 )
@@ -122,7 +124,7 @@ fun HomeScreen(
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "An open source video editor",
+                        text = stringResource(R.string.home_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -159,7 +161,7 @@ fun HomeScreen(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("New project")
+                    Text(stringResource(R.string.home_new_project))
                 }
                 OutlinedButton(
                     onClick = {
@@ -169,7 +171,7 @@ fun HomeScreen(
                 ) {
                     Icon(Icons.Default.Movie, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Refresh")
+                    Text(stringResource(R.string.home_refresh))
                 }
             }
 
@@ -181,7 +183,7 @@ fun HomeScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "No projects yet.\nTap New project to start editing.",
+                        text = stringResource(R.string.home_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -247,14 +249,17 @@ private fun ProjectRow(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = "${project.tracks.sumOf { it.segments.size }} clips · " +
-                    "${formatDuration(project.durationUs)}",
+                text = stringResource(
+                    R.string.home_clips,
+                    project.tracks.sumOf { it.segments.size },
+                    formatDuration(project.durationUs),
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         OutlinedButton(onClick = onDelete) {
-            Text("Delete", color = Color(0xFFFF6B6B))
+            Text(stringResource(R.string.home_delete), color = Color(0xFFFF6B6B))
         }
     }
 }

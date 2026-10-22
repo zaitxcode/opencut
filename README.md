@@ -1,16 +1,14 @@
 # OpenCut
 
-An open-source, clean-room video editor for Android, built after studying how
-CapCut 15.3.0 (`com.lemon.lvoverseas`) is put together.
+An open-source video editor for Android.
 
 - Package: `com.zaitxcode.opencut`
 - Licence: MIT
 - Everything is free: no subscription, no credits, no watermark, no paywall.
 
-**No CapCut code, resources, artwork or strings are used or redistributed here.**
-The reverse-engineering notes in [`docs/CAPCUT_REVERSE_ENGINEERING.md`](docs/CAPCUT_REVERSE_ENGINEERING.md)
-describe the *architecture* that was observed; every line of code in this repository
-was written from scratch, including the logo and the icon.
+Every line of code, every asset and the logo itself were written from scratch for
+this project. The app talks to no server and to no third party service: it only
+reads and writes files on the device.
 
 ---
 
@@ -18,20 +16,26 @@ was written from scratch, including the logo and the icon.
 
 * **Projects** — create, open, rename and delete drafts; each project is a single
   JSON document on disk.
-* **Import** — pick videos, images and audio from the device photo picker.
+* **Import** — videos, photos and audio from the system picker, or straight from
+  the media library of the device through the built-in browser. Everything is
+  copied into the app storage, so a project never breaks when a permission
+  expires.
 * **Timeline** — multiple tracks (canvas, audio, video, effect, sticker, text,
   overlay), drag a clip to move it, drag its edges to trim it, split at the
   playhead, duplicate and delete.
 * **Preview** — an OpenGL ES 2.0 renderer that composites the layer stack and
   applies colour grading live, exactly the same way the exporter does.
-* **Tool panels** — media, audio (volume / mute), text, sticker, filters (seven
-  colour LUTs), effects, adjust (13 sliders), transition (cross fade), speed,
-  canvas ratio, crop (scale / rotation / opacity) and keyframes.
+* **Tool panels** — twelve tools, all visible at once: media, audio (add / volume
+  / mute), text, sticker (six vector shapes), filters (seven colour LUTs),
+  effects, adjust (nine sliders), transition (cross fade), speed, canvas ratio,
+  crop (scale / rotation / opacity) and keyframes.
 * **Keyframes** — per-layer animation of position, scale, rotation, opacity,
   volume and colour grading, linearly interpolated.
 * **Export** — H.264 video through `MediaCodec`, AAC audio mixed from every audio
   layer, written into an MP4 with `MediaMuxer`, at 720p / 1080p / 1440p / 4K and
   24 / 30 / 60 fps.
+* **Two languages** — English and Arabic, with a right to left layout. The
+  language is chosen in the account screen and stays on the device.
 
 ## Free by design
 
@@ -83,14 +87,14 @@ interface AssetProvider {
 to list or download anything whose licence is blank. That keeps the project from
 turning into a distribution channel for artwork nobody is allowed to redistribute.
 
-### Why it is not wired to CapCut
+### Why the catalogue is empty by default
 
-The app does **not** call CapCut/ByteDance endpoints, and no CapCut API key,
-signature scheme or CDN path exists in this repository. Using those services from a
-third-party client would breach their terms of service, and their effects, filters,
-templates and stickers are proprietary artwork that cannot be redistributed in an
-open-source project. The provider interface exists so that people who want a
-hosted catalogue can run their own, with assets they created or properly licensed.
+The app ships without any hosted asset catalogue. Effects, filters, templates and
+stickers of a commercial service are proprietary artwork that cannot be
+redistributed in an open-source project, and calling such a service from a
+third-party client would breach its terms of use. The provider interface exists so
+that people who want a hosted catalogue can run their own, with assets they
+created or properly licensed.
 
 See [`docs/PROVIDERS.md`](docs/PROVIDERS.md) for the catalogue format.
 
@@ -164,12 +168,27 @@ Download the latest build from the
 
 | Version | File | Size | SHA-256 |
 |---|---|---|---|
+| 1.0.3 | `opencut-1.0.3.apk` | 1.47 MB | see the release page |
+| 1.0.3 | `opencut-1.0.3.aab` | 3.78 MB | see the release page |
 | 1.0.2 | `opencut-1.0.2.apk` | 1.45 MB | `6a2f5ad0a3c4961bc127105fe78483c4518175f8606f04054c4ff109074e66d0` |
 | 1.0.2 | `opencut-1.0.2.aab` | 3.75 MB | `2dbba847ac1941b1114beaea77218d3dda0a54a7ebf4267565c6ba747c1d2cdf` |
 
 Install the APK with `adb install opencut-1.0.2.apk` or by opening it on the
 phone. It works without an account; creating one is optional and stays on the
 device.
+
+### 1.0.3 — every tool works, and the app speaks Arabic
+
+* images, videos and audio can be imported from the system picker **or** from the
+  media library of the device, which is now browsable inside the app
+* photos and stickers are drawn from their real content instead of a placeholder
+* the twelve tools of the editor are all visible on two rows instead of hiding
+  half of them behind a scroll
+* the preview is a `TextureView` now, so it is composited like the rest of the
+  screen and the top bar is never covered by it
+* audio is mixed and muxed next to the video track, with the correct duration
+* English and Arabic, with a right to left layout in Arabic
+* the interface language can be changed in the account screen
 
 ### 1.0.2 — preview, playback and export fixes
 
@@ -251,6 +270,7 @@ Release key SHA-256: `FE:39:7D:E1:CF:4D:CF:B8:5B:97:A7:F7:7A:11:86:74:75:E8:BE:4
 | Transitions | cross fade implemented in the renderer and the exporter |
 | Colour LUTs | seven built-in looks, generated analytically as 32×1024 strips |
 | Accounts | optional, local only (guest or named profile) |
+| Language | English and Arabic, right to left in Arabic |
 | Feature gating | none — every feature unlocked |
 | Curve speed, chroma key, masks, colour wheels | modelled in the data layer, not yet rendered |
 | Templates, AI features, cloud sync | not implemented |

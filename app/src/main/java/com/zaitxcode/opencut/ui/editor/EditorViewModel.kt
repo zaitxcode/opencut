@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.zaitxcode.opencut.core.editor.EditorStore
 import com.zaitxcode.opencut.core.editor.newProject
+import com.zaitxcode.opencut.core.media.MediaKind
 import com.zaitxcode.opencut.core.media.MediaProbe
 import com.zaitxcode.opencut.core.model.Adjustment
 import com.zaitxcode.opencut.core.model.FilterSpec
@@ -267,17 +268,16 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
                 uris.mapNotNull { uri ->
                     val local = copyIntoStorage(app, uri)
                     val info = MediaProbe.probe(app, local) ?: return@mapNotNull null
-                    val kind = when {
-                        info.hasVideo && !info.hasAudio -> MaterialKind.VIDEO
-                        info.hasAudio && !info.hasVideo -> MaterialKind.AUDIO
-                        info.hasVideo -> MaterialKind.VIDEO
-                        else -> MaterialKind.IMAGE
+                    val kind = when (info.kind) {
+                        MediaKind.IMAGE -> MaterialKind.IMAGE
+                        MediaKind.AUDIO -> MaterialKind.AUDIO
+                        MediaKind.VIDEO -> MaterialKind.VIDEO
                     }
                     Material(
                         id = UUID.randomUUID().toString(),
                         kind = kind,
                         path = local.toString(),
-                        name = uri.lastPathSegment?.substringAfterLast('/') ?: "media",
+                        name = fileNameOf(uri),
                         durationUs = info.durationUs,
                         width = info.displayWidth,
                         height = info.displayHeight,
@@ -294,11 +294,17 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    /** Copies a picked document into `files/media` and returns the local uri. */
+    /**
+     * Copies a picked document into `files/media` and returns the local uri.
+     *
+     * The extension is kept so that the decoders and the bitmap loader recognise
+     * the copied file.
+     */
     private fun copyIntoStorage(app: Application, uri: Uri): Uri = runCatching {
         val dir = File(app.filesDir, "media").apply { mkdirs() }
-        val extension = app.contentResolver.getType(uri)
-            ?.substringAfterLast('/')
+        val mime = app.contentResolver.getType(uri).orEmpty()
+        val extension = extensionFor(mime) ?: uri.lastPathSegment
+            ?.substringAfterLast('.', "")
             ?.takeIf { it.length in 1..5 }
             ?: "bin"
         val target = File(dir, UUID.randomUUID().toString() + "." + extension)
@@ -307,6 +313,32 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
         } ?: return uri
         Uri.fromFile(target)
     }.getOrDefault(uri)
+
+    /** Maps a mime type onto the file extension the decoders expect. */
+    private fun extensionFor(mime: String): String? = when {
+        mime.startsWith("image/jpeg") -> "jpg"
+        mime.startsWith("image/png") -> "png"
+        mime.startsWith("image/webp") -> "webp"
+        mime.startsWith("image/heic") || mime.startsWith("image/heif") -> "heic"
+        mime.startsWith("image/gif") -> "gif"
+        mime.startsWith("video/mp4") -> "mp4"
+        mime.startsWith("video/quicktime") -> "mov"
+        mime.startsWith("video/webm") -> "webm"
+        mime.startsWith("video/3gpp") -> "3gp"
+        mime.startsWith("audio/mpeg") -> "mp3"
+        mime.startsWith("audio/mp4") || mime.startsWith("audio/aac") -> "m4a"
+        mime.startsWith("audio/ogg") -> "ogg"
+        mime.startsWith("audio/wav") || mime.startsWith("audio/x-wav") -> "wav"
+        mime.startsWith("audio/") -> "m4a"
+        else -> null
+    }
+
+    /** A readable name for an imported file. */
+    private fun fileNameOf(uri: Uri): String {
+        val raw = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+        if (raw != null && '.' in raw) return raw.substringBeforeLast('.')
+        return raw ?: "media"
+    }
 
     /** Persists the current project. */
     fun save() {

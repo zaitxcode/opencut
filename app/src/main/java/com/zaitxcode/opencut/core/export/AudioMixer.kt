@@ -5,7 +5,6 @@ import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaExtractor
 import android.media.MediaFormat
-import android.media.MediaMuxer
 import android.net.Uri
 import android.util.Log
 import com.zaitxcode.opencut.core.model.Project
@@ -27,17 +26,19 @@ class AudioMixer(private val context: Context) {
     private val channels = 2
 
     /**
-     * Encodes the project's audio and writes it into [muxer].
+     * Encodes the project's audio.
      *
-     * Returns the index of the created track, or `-1` when the project has no audio.
+     * The audio is encoded before the container is started, because a muxer only
+     * accepts a new track while it has not been started yet. The result carries the
+     * output format of the encoder and the encoded samples, so that the exporter
+     * can add the track and write the samples in the right order.
      */
-    fun encodeInto(
+    fun encode(
         project: Project,
         durationUs: Long,
-        muxer: MediaMuxer,
-    ): Int {
+    ): EncodedAudio? {
         val plans = audioPlans(project)
-        if (plans.isEmpty()) return -1
+        if (plans.isEmpty()) return null
 
         val totalSamples = maxOf(1, (durationUs * sampleRate / 1_000_000L).toInt())
         val mixed = ShortArray(totalSamples * channels)
@@ -50,12 +51,12 @@ class AudioMixer(private val context: Context) {
             while (index < pcm.size / 2 && offsetSamples + index / 2 < totalSamples) {
                 val target = (offsetSamples + index / 2) * 2 + (index % 2)
                 val sample = (pcm[index] * gain).toInt().coerceIn(-32768, 32767)
-                mixed[target] = (mixed[target] + sample).toInt().coerceIn(-32768, 32767).toShort()
+                mixed[target] = (mixed[target] + sample).coerceIn(-32768, 32767).toShort()
                 index++
             }
         }
 
-        return encodeAac(mixed, totalSamples, muxer)
+        return encodeAac(mixed, totalSamples)
     }
 
     /** One audio layer of the project. */
@@ -185,8 +186,8 @@ class AudioMixer(private val context: Context) {
         return output
     }
 
-    /** Encodes the mixed PCM with AAC and writes it into the container. */
-    private fun encodeAac(pcm: ShortArray, sampleCount: Int, muxer: MediaMuxer): Int {
+    /** Encodes the mixed PCM with AAC. */
+    private fun encodeAac(pcm: ShortArray, sampleCount: Int): EncodedAudio? {
         val format = MediaFormat.createAudioFormat(
             MediaFormat.MIMETYPE_AUDIO_AAC,
             sampleRate,
@@ -204,57 +205,65 @@ class AudioMixer(private val context: Context) {
         encoder.start()
 
         val bufferInfo = MediaCodec.BufferInfo()
-        var trackIndex = -1
-        var muxerStarted = false
+        var outputFormat: MediaFormat? = null
+        val samples = mutableListOf<EncodedSample>()
         var sampleOffset = 0
 
-        while (sampleOffset < sampleCount) {
-            val inputIndex = encoder.dequeueInputBuffer(10_000)
-            if (inputIndex >= 0) {
-                val inputBuffer = encoder.getInputBuffer(inputIndex)
-                if (inputBuffer != null) {
-                    val chunkSamples = minOf(inputBuffer.capacity() / 2 / channels, sampleCount - sampleOffset)
-                    val bytes = ByteBuffer.allocate(chunkSamples * channels * 2)
-                        .order(ByteOrder.nativeOrder())
-                    for (i in 0 until chunkSamples * channels) {
-                        bytes.putShort(pcm[sampleOffset * channels + i])
+        var inputDone = false
+        while (true) {
+            if (!inputDone) {
+                val inputIndex = encoder.dequeueInputBuffer(10_000)
+                if (inputIndex >= 0) {
+                    val inputBuffer = encoder.getInputBuffer(inputIndex)
+                    if (inputBuffer != null && sampleOffset < sampleCount) {
+                        val chunkSamples = minOf(inputBuffer.capacity() / 2 / channels, sampleCount - sampleOffset)
+                        val bytes = ByteBuffer.allocate(chunkSamples * channels * 2)
+                            .order(ByteOrder.nativeOrder())
+                        for (i in 0 until chunkSamples * channels) {
+                            bytes.putShort(pcm[sampleOffset * channels + i])
+                        }
+                        val data = bytes.array()
+                        inputBuffer.clear()
+                        inputBuffer.put(data)
+                        encoder.queueInputBuffer(
+                            inputIndex,
+                            0,
+                            data.size,
+                            sampleOffset * 1_000_000L / sampleRate,
+                            0,
+                        )
+                        sampleOffset += chunkSamples
+                    } else {
+                        // The end of the stream lets the encoder flush the packets
+                        // it still holds, so the track is not cut short.
+                        encoder.queueInputBuffer(
+                            inputIndex,
+                            0,
+                            0,
+                            0L,
+                            MediaCodec.BUFFER_FLAG_END_OF_STREAM,
+                        )
+                        inputDone = true
                     }
-                    val data = bytes.array()
-                    inputBuffer.clear()
-                    inputBuffer.put(data)
-                    encoder.queueInputBuffer(
-                        inputIndex,
-                        0,
-                        data.size,
-                        sampleOffset * 1_000_000L / sampleRate,
-                        0,
-                    )
-                    sampleOffset += chunkSamples
-                } else {
-                    encoder.queueInputBuffer(
-                        inputIndex,
-                        0,
-                        0,
-                        0L,
-                        MediaCodec.BUFFER_FLAG_END_OF_STREAM,
-                    )
                 }
             }
             val outputIndex = encoder.dequeueOutputBuffer(bufferInfo, 10_000)
             if (outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                if (!muxerStarted) {
-                    trackIndex = muxer.addTrack(encoder.outputFormat)
-                    muxer.start()
-                    muxerStarted = true
-                }
+                outputFormat = encoder.outputFormat
                 continue
             }
             if (outputIndex >= 0) {
                 val encoded = encoder.getOutputBuffer(outputIndex)
-                if (encoded != null && bufferInfo.size > 0 && muxerStarted) {
+                if (encoded != null && bufferInfo.size > 0) {
                     encoded.position(bufferInfo.offset)
                     encoded.limit(bufferInfo.offset + bufferInfo.size)
-                    muxer.writeSampleData(trackIndex, encoded, bufferInfo)
+                    val copy = ByteArray(bufferInfo.size)
+                    encoded.get(copy)
+                    samples += EncodedSample(
+                        data = copy,
+                        presentationTimeUs = bufferInfo.presentationTimeUs,
+                        flags = bufferInfo.flags,
+                    )
                 }
                 encoder.releaseOutputBuffer(outputIndex, false)
                 if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) break
@@ -262,6 +271,20 @@ class AudioMixer(private val context: Context) {
         }
         encoder.stop()
         encoder.release()
-        return if (muxerStarted) trackIndex else -1
+        val encodedFormat = outputFormat ?: return null
+        return EncodedAudio(format = encodedFormat, samples = samples)
     }
 }
+
+/** The encoded audio of a project, ready to be written into a container. */
+data class EncodedAudio(
+    val format: MediaFormat,
+    val samples: List<EncodedSample>,
+)
+
+/** One encoded audio packet. */
+data class EncodedSample(
+    val data: ByteArray,
+    val presentationTimeUs: Long,
+    val flags: Int,
+)

@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Redo
-import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +32,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zaitxcode.opencut.core.editor.newProject
 import com.zaitxcode.opencut.ui.editor.panel.PanelHost
 import com.zaitxcode.opencut.ui.editor.panel.Tool
+import androidx.compose.ui.res.stringResource
+import com.zaitxcode.opencut.R
 
 /**
  * The main editing screen.
@@ -145,7 +147,7 @@ private fun EditorTopBar(
         IconButton(onClick = onBack) {
             Icon(
                 Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.editor_back),
                 tint = MaterialTheme.colorScheme.onBackground,
             )
         }
@@ -157,20 +159,20 @@ private fun EditorTopBar(
         )
         IconButton(onClick = onUndo, enabled = canUndo) {
             Icon(
-                Icons.Default.Undo,
-                contentDescription = "Undo",
+                Icons.AutoMirrored.Filled.Undo,
+                contentDescription = stringResource(R.string.editor_undo),
                 tint = if (canUndo) MaterialTheme.colorScheme.onBackground else Color.DarkGray,
             )
         }
         IconButton(onClick = onRedo, enabled = canRedo) {
             Icon(
-                Icons.Default.Redo,
-                contentDescription = "Redo",
+                Icons.AutoMirrored.Filled.Redo,
+                contentDescription = stringResource(R.string.editor_redo),
                 tint = if (canRedo) MaterialTheme.colorScheme.onBackground else Color.DarkGray,
             )
         }
         Text(
-            text = "Export",
+            text = stringResource(R.string.editor_export),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier

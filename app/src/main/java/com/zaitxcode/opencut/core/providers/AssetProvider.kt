@@ -55,10 +55,10 @@ class AssetProviderException(message: String) : Exception(message)
  * is [LocalAssetProvider]; [HttpAssetProvider] is provided for people who want to
  * host their own catalogue of original or properly licensed assets.
  *
- * It is not wired to any commercial service. In particular it is **not** pointed
- * at CapCut/ByteDance servers: use of those endpoints would breach their terms of
- * service, and their effects, filters and stickers are proprietary artwork that
- * cannot be redistributed in an open-source project.
+ * It is not wired to any commercial service. The endpoints of a proprietary
+ * service may not be called by a third-party client, and their effects, filters
+ * and stickers are artwork that cannot be redistributed in an open-source
+ * project.
  */
 interface AssetProvider {
 

@@ -22,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.zaitxcode.opencut.R
 
 /** Brand colours shared by the logo, the launcher icon and the theme. */
 object BrandColors {
@@ -124,7 +126,7 @@ fun BrandCentered(
 @Composable
 fun FreeBadge(modifier: Modifier = Modifier) {
     Text(
-        text = "FREE FOREVER",
+        text = stringResource(R.string.home_free_badge),
         color = BrandColors.Accent,
         fontSize = 10.sp,
         fontWeight = FontWeight.Bold,

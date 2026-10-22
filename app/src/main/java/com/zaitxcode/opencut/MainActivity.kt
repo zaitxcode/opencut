@@ -1,5 +1,6 @@
 package com.zaitxcode.opencut
 
+import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -22,6 +23,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.zaitxcode.opencut.core.i18n.LocaleContext
 import com.zaitxcode.opencut.ui.account.AccountScreen
 import com.zaitxcode.opencut.ui.account.OnboardingScreen
 import com.zaitxcode.opencut.ui.editor.EditorScreen
@@ -43,6 +45,15 @@ object Routes {
 }
 
 class MainActivity : ComponentActivity() {
+
+    /**
+     * The interface language is applied before the activity is created, so the
+     * very first frame already shows the right language and the right text
+     * direction.
+     */
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleContext.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

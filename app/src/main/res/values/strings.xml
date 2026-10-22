@@ -6,6 +6,42 @@
     <string name="home_title">Projects</string>
     <string name="home_new_project">New project</string>
     <string name="home_empty">No projects yet. Tap New project to start editing.</string>
+    <string name="home_subtitle">An open source video editor</string>
+    <string name="home_free_badge">FREE FOREVER</string>
+    <string name="home_refresh">Refresh</string>
+    <string name="home_delete">Delete</string>
+    <string name="home_clips">%1$d clips · %2$s</string>
+    <string name="home_open">Open</string>
+    <string name="home_account">Account</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_title">OpenCut</string>
+    <string name="onboarding_subtitle">An open source video editor</string>
+    <string name="onboarding_free_title">Everything is free</string>
+    <string name="onboarding_free_body">No subscription, no credits, no watermark.</string>
+    <string name="onboarding_account_title">No account required</string>
+    <string name="onboarding_account_body">Edit offline and keep your drafts on this device.</string>
+    <string name="onboarding_open_title">Open source</string>
+    <string name="onboarding_open_body">MIT licensed, auditable and forkable.</string>
+    <string name="onboarding_guest">Continue without an account</string>
+    <string name="onboarding_account">Create a local account</string>
+
+    <!-- Account -->
+    <string name="account_title">Account</string>
+    <string name="account_guest">Guest</string>
+    <string name="account_guest_body">You are editing as a guest. Everything is available and nothing is uploaded.</string>
+    <string name="account_name_label">Display name</string>
+    <string name="account_name_hint">Your name</string>
+    <string name="account_save">Save</string>
+    <string name="account_saved">Profile saved</string>
+    <string name="account_sign_out">Delete local profile</string>
+    <string name="account_language">Language</string>
+    <string name="account_language_system">System default</string>
+    <string name="account_language_en">English</string>
+    <string name="account_language_ar">العربية</string>
+    <string name="account_about">About</string>
+    <string name="account_version">Version %1$s</string>
+    <string name="account_licence">MIT licence · free forever</string>
 
     <!-- Editor chrome -->
     <string name="editor_back">Back</string>
@@ -15,6 +51,9 @@
     <string name="editor_preview">Preview</string>
     <string name="editor_play">Play</string>
     <string name="editor_pause">Pause</string>
+    <string name="editor_split">Split</string>
+    <string name="editor_duplicate">Duplicate</string>
+    <string name="editor_delete">Delete</string>
 
     <!-- Dock tools -->
     <string name="tool_media">Media</string>
@@ -36,15 +75,99 @@
     <string name="tool_delete">Delete</string>
     <string name="tool_split">Split</string>
 
+    <!-- Media panel -->
+    <string name="media_add_video">Video</string>
+    <string name="media_add_photo">Photo</string>
+    <string name="media_add_audio">Audio</string>
+    <string name="media_browse">Browse</string>
+    <string name="media_browse_title">On this device</string>
+    <string name="media_all">All</string>
+    <string name="media_empty">No media found on this device.</string>
+    <string name="media_add">Add</string>
+    <string name="media_hint">Videos and photos land on the video track, audio files on the audio track.</string>
+
+    <!-- Audio panel -->
+    <string name="audio_add">Add audio</string>
+    <string name="audio_volume">Volume</string>
+    <string name="audio_mute">Mute</string>
+    <string name="audio_unmute">Unmute</string>
+
+    <!-- Text panel -->
+    <string name="text_hint">Type something</string>
+    <string name="text_add">Add</string>
+
+    <!-- Stickers -->
+    <string name="sticker_circle">Circle</string>
+    <string name="sticker_square">Square</string>
+    <string name="sticker_star">Star</string>
+    <string name="sticker_heart">Heart</string>
+    <string name="sticker_arrow">Arrow</string>
+    <string name="sticker_sparkle">Sparkle</string>
+
+    <!-- Filters -->
+    <string name="filter_none">None</string>
+    <string name="filter_warm">Warm</string>
+    <string name="filter_cool">Cool</string>
+    <string name="filter_vivid">Vivid</string>
+    <string name="filter_mono">Mono</string>
+    <string name="filter_sepia">Sepia</string>
+    <string name="filter_vintage">Vintage</string>
+
+    <!-- Effects -->
+    <string name="effect_none">None</string>
+    <string name="effect_bright">Brighten</string>
+    <string name="effect_dark">Darken</string>
+    <string name="effect_punch">Punch</string>
+    <string name="effect_soft">Soft</string>
+    <string name="effect_vignette">Vignette</string>
+    <string name="effect_grain">Grain</string>
+
+    <!-- Adjust -->
+    <string name="adjust_brightness">Brightness</string>
+    <string name="adjust_contrast">Contrast</string>
+    <string name="adjust_saturation">Saturation</string>
+    <string name="adjust_temperature">Temperature</string>
+    <string name="adjust_highlights">Highlights</string>
+    <string name="adjust_shadows">Shadows</string>
+    <string name="adjust_fade">Fade</string>
+    <string name="adjust_vignette">Vignette</string>
+    <string name="adjust_grain">Grain</string>
+
+    <!-- Transition -->
+    <string name="transition_none">None</string>
+    <string name="transition_fade">Fade</string>
+    <string name="transition_dissolve">Cross dissolve</string>
+    <string name="transition_slow">Slow dissolve</string>
+    <string name="transition_hint">The transition cross fades the previous clip into the selected one.</string>
+
+    <!-- Crop -->
+    <string name="crop_scale">Scale</string>
+    <string name="crop_rotation">Rotation</string>
+    <string name="crop_opacity">Opacity</string>
+
+    <!-- Keyframes -->
+    <string name="keyframe_position">Position</string>
+    <string name="keyframe_scale">Scale</string>
+    <string name="keyframe_opacity">Opacity</string>
+    <string name="keyframe_adjust">Adjust</string>
+    <string name="keyframe_hint">A keyframe is stored at the playhead. Move the playhead and add another one to animate the layer.</string>
+
+    <!-- Hints -->
+    <string name="hint_select_layer">Select a layer on the timeline first.</string>
+
     <!-- Export -->
     <string name="export_title">Export</string>
     <string name="export_resolution">Resolution</string>
     <string name="export_frame_rate">Frame rate</string>
+    <string name="export_frame_rate_value">%1$d fps</string>
     <string name="export_start">Export</string>
     <string name="export_cancel">Cancel</string>
     <string name="export_done">Export finished</string>
     <string name="export_failed">Export failed</string>
     <string name="export_progress">Exporting… %1$d%%</string>
+    <string name="export_saved">Saved to %1$s</string>
+    <string name="export_open">Open</string>
+    <string name="export_opening">Preparing…</string>
 
     <!-- Common -->
     <string name="common_cancel">Cancel</string>
@@ -52,4 +175,5 @@
     <string name="common_save">Save</string>
     <string name="common_reset">Reset</string>
     <string name="common_done">Done</string>
+    <string name="common_untitled">Untitled</string>
 </resources>
